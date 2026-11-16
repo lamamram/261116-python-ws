@@ -492,6 +492,11 @@ prepared = req.prepare()
 print(prepared.method, prepared.url)
 print(dict(prepared.headers))
 print(prepared.body)           # None pour un GET
+
+## pour éxécuter la requête préparée
+s = requests.Session()
+response = s.send(prepared, timeout=10)
+print(response.status_code, response.text)
 ```
 
 À constater : les crochets sont encodés en `%5B` et `%5D` dans `prepared.url`. L'encodage est équivalent pour le serveur, qui décode les paramètres avant de les interpréter.
