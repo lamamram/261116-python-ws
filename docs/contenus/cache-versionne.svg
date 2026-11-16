@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 420" role="img" aria-label="Cache avec clé versionnée">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="860" height="420" fill="#ffffff"/>
+  <text x="430" y="30" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#1f2937">Invalider un cache par version de clé</text>
+
+  <!-- ligne de version -->
+  <rect x="24" y="52" width="812" height="44" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
+  <text x="40" y="79" font-family="ui-monospace, Consolas, monospace" font-size="13" fill="#1f2937">catalogue:version</text>
+  <rect x="200" y="62" width="60" height="24" rx="12" fill="#eef2ff" stroke="#4f46e5"/>
+  <text x="230" y="79" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="13" font-weight="700" fill="#4f46e5">1</text>
+  <line x1="266" y1="74" x2="520" y2="74" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="393" y="66" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11.5" fill="#475569">cache.incr(...) à chaque écriture</text>
+  <rect x="524" y="62" width="60" height="24" rx="12" fill="#f0fdfa" stroke="#0f766e"/>
+  <text x="554" y="79" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="13" font-weight="700" fill="#0f766e">2</text>
+
+  <!-- étapes -->
+  <g font-family="system-ui, sans-serif" font-size="13" fill="#1f2937">
+    <rect x="24" y="124" width="190" height="130" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="119" y="150" text-anchor="middle" font-weight="700" fill="#4f46e5">① GET /formations</text>
+    <text x="119" y="174" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="11">formations:v1:a3f9…</text>
+    <text x="119" y="198" text-anchor="middle">absent du cache</text>
+    <text x="119" y="220" text-anchor="middle" font-weight="700">X-Cache: MISS</text>
+    <text x="119" y="240" text-anchor="middle" font-size="11.5" fill="#475569">lecture ORM, puis stockage 60 s</text>
+
+    <rect x="234" y="124" width="190" height="130" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="329" y="150" text-anchor="middle" font-weight="700" fill="#4f46e5">② GET /formations</text>
+    <text x="329" y="174" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="11">formations:v1:a3f9…</text>
+    <text x="329" y="198" text-anchor="middle">présent</text>
+    <text x="329" y="220" text-anchor="middle" font-weight="700">X-Cache: HIT</text>
+    <text x="329" y="240" text-anchor="middle" font-size="11.5" fill="#475569">aucune requête SQL</text>
+
+    <rect x="444" y="124" width="190" height="130" rx="10" fill="#fff7ed" stroke="#c2410c" stroke-width="1.5"/>
+    <text x="539" y="150" text-anchor="middle" font-weight="700" fill="#c2410c">③ POST /formations</text>
+    <text x="539" y="174" text-anchor="middle">écriture en base</text>
+    <text x="539" y="198" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="11.5">invalider() : v1 → v2</text>
+    <text x="539" y="240" text-anchor="middle" font-size="11.5" fill="#475569">une seule opération atomique</text>
+
+    <rect x="654" y="124" width="182" height="130" rx="10" fill="#f0fdfa" stroke="#0f766e" stroke-width="1.5"/>
+    <text x="745" y="150" text-anchor="middle" font-weight="700" fill="#0f766e">④ GET /formations</text>
+    <text x="745" y="174" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="11">formations:v2:a3f9…</text>
+    <text x="745" y="198" text-anchor="middle">nouvelle clé : absente</text>
+    <text x="745" y="220" text-anchor="middle" font-weight="700">X-Cache: MISS</text>
+    <text x="745" y="240" text-anchor="middle" font-size="11.5" fill="#475569">données à jour</text>
+  </g>
+
+  <line x1="216" y1="190" x2="232" y2="190" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="426" y1="190" x2="442" y2="190" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="636" y1="190" x2="652" y2="190" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="24" y="282" width="812" height="110" rx="10" fill="#fffbeb" stroke="#b45309" stroke-width="1.3"/>
+  <g font-family="system-ui, sans-serif" font-size="13" fill="#1f2937">
+    <text x="44" y="310" font-weight="700" fill="#b45309">Pourquoi une version plutôt qu'un delete ?</text>
+    <text x="44" y="334">• on ne sait pas énumérer les clés d'un cache Memcached ou Redis sans les parcourir : une version évite d'avoir à le faire ;</text>
+    <text x="44" y="354">• les anciennes clés (v1) ne sont plus jamais lues et disparaissent d'elles-mêmes à l'expiration des 60 secondes ;</text>
+    <text x="44" y="374">• la clé contient une empreinte de l'URL complète : filtres, tri et pagination ont chacun leur entrée.</text>
+  </g>
+</svg>

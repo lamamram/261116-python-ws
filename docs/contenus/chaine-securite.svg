@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 520" role="img" aria-label="Chaîne de vérification BASIC et Bearer côté serveur">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#475569"/>
+    </marker>
+    <marker id="arr-ko" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/>
+    </marker>
+    <marker id="arr-ok" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#0f766e"/>
+    </marker>
+  </defs>
+  <rect width="860" height="520" fill="#ffffff"/>
+  <text x="430" y="30" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#1f2937">Vérifications côté serveur : une dépendance, plusieurs sorties</text>
+  <line x1="430" y1="50" x2="430" y2="500" stroke="#e2e8f0" stroke-width="2"/>
+
+  <!-- BEARER -->
+  <text x="215" y="64" text-anchor="middle" font-family="system-ui, sans-serif" font-size="15" font-weight="700" fill="#6d28d9">Bearer (écritures)</text>
+
+  <rect x="55" y="80" width="320" height="50" rx="8" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="215" y="101" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#1f2937">En-tête Authorization: Bearer … présent ?</text>
+  <text x="215" y="119" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="11.5" fill="#475569">HTTPBearer(auto_error=False)</text>
+  <line x1="215" y1="130" x2="215" y2="168" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="375" y1="105" x2="410" y2="105" stroke="#b91c1c" stroke-width="2" marker-end="url(#arr-ko)"/>
+  <text x="392" y="97" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#b91c1c">non</text>
+
+  <rect x="55" y="170" width="320" height="50" rx="8" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="215" y="191" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#1f2937">Jeton connu ?</text>
+  <text x="215" y="209" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="11.5" fill="#475569">secrets.compare_digest</text>
+  <line x1="215" y1="220" x2="215" y2="258" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="375" y1="195" x2="410" y2="195" stroke="#b91c1c" stroke-width="2" marker-end="url(#arr-ko)"/>
+
+  <rect x="55" y="260" width="320" height="50" rx="8" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="215" y="281" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#1f2937">Le jeton porte-t-il la portée demandée ?</text>
+  <text x="215" y="299" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="11.5" fill="#475569">catalogue:write</text>
+  <line x1="215" y1="310" x2="215" y2="348" stroke="#0f766e" stroke-width="2" marker-end="url(#arr-ok)"/>
+  <line x1="375" y1="285" x2="410" y2="285" stroke="#b91c1c" stroke-width="2" marker-end="url(#arr-ko)"/>
+
+  <rect x="95" y="350" width="240" height="40" rx="8" fill="#f0fdfa" stroke="#0f766e" stroke-width="1.5"/>
+  <text x="215" y="375" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#0f766e">la fonction de route s'exécute</text>
+
+  <g font-family="system-ui, sans-serif" font-size="11.5" fill="#b91c1c" text-anchor="start">
+    <text x="12" y="440" fill="#b91c1c" font-weight="600">Sorties d'erreur</text>
+    <text x="12" y="458">401 missing_token · WWW-Authenticate: Bearer</text>
+    <text x="12" y="474">401 invalid_token · jeton inconnu ou révoqué</text>
+    <text x="12" y="490">403 insufficient_scope · jeton valide, droit manquant</text>
+  </g>
+
+  <!-- BASIC -->
+  <text x="645" y="64" text-anchor="middle" font-family="system-ui, sans-serif" font-size="15" font-weight="700" fill="#c2410c">BASIC (administration)</text>
+
+  <rect x="485" y="80" width="320" height="50" rx="8" fill="#fff7ed" stroke="#c2410c" stroke-width="1.5"/>
+  <text x="645" y="101" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#1f2937">En-tête Authorization: Basic … présent ?</text>
+  <text x="645" y="119" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="11.5" fill="#475569">HTTPBasic(auto_error=False)</text>
+  <line x1="645" y1="130" x2="645" y2="168" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="485" y="170" width="320" height="50" rx="8" fill="#fff7ed" stroke="#c2410c" stroke-width="1.5"/>
+  <text x="645" y="191" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#1f2937">Identifiant et mot de passe corrects ?</text>
+  <text x="645" y="209" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="11.5" fill="#475569">compare_digest sur les deux champs</text>
+  <line x1="645" y1="220" x2="645" y2="348" stroke="#0f766e" stroke-width="2" marker-end="url(#arr-ok)"/>
+
+  <rect x="525" y="350" width="240" height="40" rx="8" fill="#f0fdfa" stroke="#0f766e" stroke-width="1.5"/>
+  <text x="645" y="375" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#0f766e">la fonction de route s'exécute</text>
+
+  <g font-family="system-ui, sans-serif" font-size="11.5" fill="#b91c1c">
+    <text x="442" y="440" font-weight="600">Sorties d'erreur</text>
+    <text x="442" y="458">401 invalid_credentials</text>
+    <text x="442" y="474">WWW-Authenticate: Basic realm="admin"</text>
+    <text x="442" y="490">(même message si l'identifiant ou le mot de passe est faux)</text>
+  </g>
+</svg>

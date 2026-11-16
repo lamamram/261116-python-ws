@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 440" role="img" aria-label="Modèles Pydantic de l'API Catalogue">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="860" height="440" fill="#ffffff"/>
+  <text x="430" y="30" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#1f2937">Un modèle par usage : création, modification, lecture</text>
+
+  <!-- création -->
+  <text x="30" y="68" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#15803d">POST /v1/formations</text>
+  <rect x="30" y="80" width="230" height="140" rx="10" fill="#f0fdf4" stroke="#15803d" stroke-width="1.5"/>
+  <text x="145" y="104" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="14" font-weight="700" fill="#1f2937">FormationCreate</text>
+  <g font-family="ui-monospace, Consolas, monospace" font-size="12" fill="#1f2937">
+    <text x="46" y="130">code        (obligatoire)</text>
+    <text x="46" y="148">titre       (obligatoire)</text>
+    <text x="46" y="166">duree_jours (1 à 10)</text>
+    <text x="46" y="184">niveau      (enum)</text>
+    <text x="46" y="202">description (facultative)</text>
+  </g>
+
+  <line x1="262" y1="150" x2="318" y2="150" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="320" y="118" width="220" height="64" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="430" y="144" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#1f2937">Stockage ajoute</text>
+  <text x="430" y="164" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="12" fill="#475569">id, cree_le, modifie_le</text>
+  <line x1="542" y1="150" x2="598" y2="150" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- lecture -->
+  <rect x="600" y="80" width="230" height="170" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="715" y="104" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="14" font-weight="700" fill="#1f2937">Formation</text>
+  <text x="715" y="122" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11.5" fill="#4f46e5">modèle de réponse (response_model)</text>
+  <g font-family="ui-monospace, Consolas, monospace" font-size="12" fill="#1f2937">
+    <text x="616" y="148">id           (UUID)</text>
+    <text x="616" y="166">code, titre, description</text>
+    <text x="616" y="184">duree_jours, niveau</text>
+    <text x="616" y="202">cree_le      (date-heure)</text>
+    <text x="616" y="220">modifie_le   (date-heure)</text>
+  </g>
+
+  <!-- modification -->
+  <text x="30" y="286" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#b45309">PATCH /v1/formations/{id}</text>
+  <rect x="30" y="298" width="230" height="110" rx="10" fill="#fffbeb" stroke="#b45309" stroke-width="1.5"/>
+  <text x="145" y="322" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="14" font-weight="700" fill="#1f2937">FormationUpdate</text>
+  <g font-family="ui-monospace, Consolas, monospace" font-size="12" fill="#1f2937">
+    <text x="46" y="348">tous les champs facultatifs</text>
+    <text x="46" y="366">code : interdit (extra=forbid)</text>
+    <text x="46" y="384">null refusé sur les obligatoires</text>
+  </g>
+
+  <line x1="262" y1="353" x2="318" y2="353" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="320" y="318" width="270" height="70" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="455" y="342" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="12" fill="#1f2937">model_dump(exclude_unset=True)</text>
+  <text x="455" y="362" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="12" fill="#1f2937">model_copy(update=...)</text>
+  <text x="455" y="380" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11.5" fill="#475569">seuls les champs envoyés changent</text>
+  <path d="M592,353 C640,353 660,300 690,252" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+</svg>

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 470" role="img" aria-label="Contrat de l'API Catalogue">
+  <rect width="860" height="470" fill="#ffffff"/>
+  <text x="430" y="30" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#1f2937">Contrat de l'API Catalogue (version 1)</text>
+
+  <g font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#64748b">
+    <text x="30" y="62">MÉTHODE</text>
+    <text x="130" y="62">CHEMIN</text>
+    <text x="530" y="62">ACCÈS</text>
+    <text x="680" y="62">SUCCÈS</text>
+  </g>
+  <line x1="24" y1="70" x2="836" y2="70" stroke="#cbd5e1" stroke-width="1.5"/>
+
+  <!-- lignes -->
+  <g font-family="ui-monospace, Consolas, monospace" font-size="13" fill="#1f2937">
+    <!-- 1 -->
+    <rect x="28" y="82" width="64" height="24" rx="5" fill="#dbeafe"/><text x="60" y="99" text-anchor="middle" font-size="12" font-weight="700" fill="#1d4ed8">GET</text>
+    <text x="130" y="99">/v1/sante</text>
+    <rect x="528" y="82" width="84" height="24" rx="12" fill="#f1f5f9"/><text x="570" y="99" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#475569">public</text>
+    <text x="680" y="99">200</text>
+    <!-- 2 -->
+    <rect x="28" y="122" width="64" height="24" rx="5" fill="#dbeafe"/><text x="60" y="139" text-anchor="middle" font-size="12" font-weight="700" fill="#1d4ed8">GET</text>
+    <text x="130" y="139">/v1/formations</text>
+    <rect x="528" y="122" width="84" height="24" rx="12" fill="#f1f5f9"/><text x="570" y="139" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#475569">public</text>
+    <text x="680" y="139">200 (page)</text>
+    <!-- 3 -->
+    <rect x="28" y="162" width="64" height="24" rx="5" fill="#dcfce7"/><text x="60" y="179" text-anchor="middle" font-size="12" font-weight="700" fill="#15803d">POST</text>
+    <text x="130" y="179">/v1/formations</text>
+    <rect x="528" y="162" width="84" height="24" rx="12" fill="#ede9fe"/><text x="570" y="179" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#6d28d9">Bearer</text>
+    <text x="680" y="179">201 + Location</text>
+    <!-- 4 -->
+    <rect x="28" y="202" width="64" height="24" rx="5" fill="#dbeafe"/><text x="60" y="219" text-anchor="middle" font-size="12" font-weight="700" fill="#1d4ed8">GET</text>
+    <text x="130" y="219">/v1/formations/{id}</text>
+    <rect x="528" y="202" width="84" height="24" rx="12" fill="#f1f5f9"/><text x="570" y="219" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#475569">public</text>
+    <text x="680" y="219">200</text>
+    <!-- 5 -->
+    <rect x="28" y="242" width="64" height="24" rx="5" fill="#fef3c7"/><text x="60" y="259" text-anchor="middle" font-size="12" font-weight="700" fill="#b45309">PATCH</text>
+    <text x="130" y="259">/v1/formations/{id}</text>
+    <rect x="528" y="242" width="84" height="24" rx="12" fill="#ede9fe"/><text x="570" y="259" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#6d28d9">Bearer</text>
+    <text x="680" y="259">200</text>
+    <!-- 6 -->
+    <rect x="28" y="282" width="64" height="24" rx="5" fill="#fee2e2"/><text x="60" y="299" text-anchor="middle" font-size="12" font-weight="700" fill="#b91c1c">DELETE</text>
+    <text x="130" y="299">/v1/formations/{id}</text>
+    <rect x="528" y="282" width="84" height="24" rx="12" fill="#ede9fe"/><text x="570" y="299" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#6d28d9">Bearer</text>
+    <text x="680" y="299">204</text>
+    <!-- 7 -->
+    <rect x="28" y="322" width="64" height="24" rx="5" fill="#dbeafe"/><text x="60" y="339" text-anchor="middle" font-size="12" font-weight="700" fill="#1d4ed8">GET</text>
+    <text x="130" y="339">/v1/formations/{id}/sessions</text>
+    <rect x="528" y="322" width="84" height="24" rx="12" fill="#f1f5f9"/><text x="570" y="339" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#475569">public</text>
+    <text x="680" y="339">200 (page)</text>
+    <!-- 8 -->
+    <rect x="28" y="362" width="64" height="24" rx="5" fill="#dcfce7"/><text x="60" y="379" text-anchor="middle" font-size="12" font-weight="700" fill="#15803d">POST</text>
+    <text x="130" y="379">/v1/formations/{id}/sessions</text>
+    <rect x="528" y="362" width="84" height="24" rx="12" fill="#ede9fe"/><text x="570" y="379" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#6d28d9">Bearer</text>
+    <text x="680" y="379">201</text>
+    <!-- 9 -->
+    <rect x="28" y="402" width="64" height="24" rx="5" fill="#dbeafe"/><text x="60" y="419" text-anchor="middle" font-size="12" font-weight="700" fill="#1d4ed8">GET</text>
+    <text x="130" y="419">/v1/admin/statistiques</text>
+    <rect x="528" y="402" width="84" height="24" rx="12" fill="#ffedd5"/><text x="570" y="419" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#c2410c">BASIC</text>
+    <text x="680" y="419">200</text>
+  </g>
+
+  <text x="430" y="456" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#64748b">Bearer : portée catalogue:write requise · erreurs au format Problem Details (application/problem+json)</text>
+</svg>
