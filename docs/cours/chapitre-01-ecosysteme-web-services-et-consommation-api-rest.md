@@ -40,7 +40,7 @@ Un dépôt `api-catalogue/` contenant :
 - un environnement virtuel et un fichier `requirements.txt` ;
 - un jeton d'API stocké hors du code (`.env`, ignoré par Git) ;
 - le module `catalogue_client/gorest.py` : session HTTP configurée, authentification Bearer, reprises automatiques, exceptions typées, pagination par générateur ;
-- trois scripts d'atelier (`explorer.py`, `basic_auth.py`, `crud_authentifie.py`) ;
+- trois scripts d'atelier (`explorer.py`, `basic_auth.py`, `main.py`) ;
 - un jeu de commandes `curl.exe` de référence.
 
 > [!NOTE] Choix pédagogique
@@ -398,7 +398,7 @@ api-catalogue/
 │   └── gorest.py
 ├── explorer.py
 ├── basic_auth.py
-└── crud_authentifie.py
+└── main.py
 ```
 
 ```bash
@@ -1144,7 +1144,7 @@ python -c "from catalogue_client import GoRestClient; c = GoRestClient(); print(
 
 #### Étape 4 — Scénario d'écriture authentifié (30 min)
 
-**Consignes.** Dans `crud_authentifie.py`, avec `GoRestClient` :
+**Consignes.** Dans `main.py`, avec `GoRestClient` :
 
 1. tenter une création **sans jeton** et constater l'exception ;
 2. créer un utilisateur avec un e-mail unique ;
@@ -1153,7 +1153,7 @@ python -c "from catalogue_client import GoRestClient; c = GoRestClient(); print(
 5. tenter de modifier une ligne d'exemple (`read_only: true`) ;
 6. supprimer l'utilisateur et vérifier qu'une relecture échoue.
 
-**Corrigé formateur — `crud_authentifie.py`**
+**Corrigé formateur — `main.py`**
 
 ```python
 ???
@@ -1204,7 +1204,7 @@ api-catalogue/
 │   └── gorest.py             # GoRestClient, exceptions, BearerAuth
 ├── explorer.py               # lectures sans authentification
 ├── basic_auth.py             # BASIC sur httpbin
-└── crud_authentifie.py       # scénario Bearer + ETag
+└── main.py       # scénario Bearer + ETag
 ```
 
 ### Les réflexes installés
