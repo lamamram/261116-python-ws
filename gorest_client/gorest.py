@@ -3,6 +3,7 @@ from typing import Any
 from urllib.parse import quote
 from collections.abc import Iterator
 import requests
+from .exceptions import *
 
 class GoRestClient:
     """
@@ -45,23 +46,27 @@ class GoRestClient:
         **options couvre: params, data, cookies, files
         """
         options.setdefault("timeout", self.settings.timeout)
-        print(options)
         options.setdefault("allow_redirects", self.settings.allow_redirects)
         url = f"{self.base_url}/{path.lstrip('/')}"
 
         # crée une request.Request + prepare + send
         r = self.session.request(method=method, url=url, **options)
 
-        if r.ok and "application/json" in r.headers["content-type"]:
-            return r.json()
-        if "application/json" not in r.headers["content-type"]:
-            raise "???"
-        raise "???"
+        if r.ok:
+            if "application/json" in r.headers["content-type"]:
+                return r.json()
+            raise ApiError(r.status_code, {"detail": "réponse non JSON !!!"})
+        raise self._error(r)
 
     ### helper #############################
     @staticmethod
     def _path(resource: str, _id: str) -> str:
         return f"{resource}/{quote(_id, safe='')}"
+
+    @staticmethod
+    def _error(r: requests.Response):
+        # -------------------> erreur connue / inconnue
+        return PAR_STATUT.get(r.status_code, ApiError)(r.status_code, r.json())
 
     ### interface publique ###################################
 
