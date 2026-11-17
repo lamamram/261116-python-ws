@@ -4,6 +4,16 @@ from urllib.parse import quote
 from collections.abc import Iterator
 import requests
 from .exceptions import *
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+class BearerAuth(requests.auth.AuthBase):
+    def __init__(self, token: str):
+        self.token = token
+
+    def __call__(self, r: requests.PreparedRequest) -> requests.PreparedRequest:
+        r.headers["Authorization"] = f"Bearer {self.token}"
+        return r
 
 class GoRestClient:
     """
@@ -26,6 +36,17 @@ class GoRestClient:
             "User-Agent": "gorest-client/1.0"
         }
 
+        # config retry
+        self.retry = Retry(
+            total=3,
+            backoff_factor=0.5,
+            backoff_jitter=0.5,
+            status_forcelist=(429, 404, 500, 502, 503, 504),
+            allowed_methods=frozenset({"GET", "HEAD", "OPTIONS"}),
+            respect_retry_after_header=True,
+            raise_on_status=False,
+        )
+
     ### trnasforme une classe custom en gestionnaire de contexte
 
     def __enter__(self):
@@ -34,6 +55,9 @@ class GoRestClient:
         """
         self.session = requests.Session()
         self.session.headers = self.headers
+        if self.settings.token:
+            self.session.auth = BearerAuth(self.settings.token)
+        self.session.mount("https://", HTTPAdapter(max_retries=self.retry))
         return self
 
     def __exit__(self, exc_type, exc, tb):
@@ -86,6 +110,9 @@ class GoRestClient:
 
     def get(self, resource: str, _id: str) -> dict[str, Any]:
         return self.__call("GET", self._path(resource, _id))
+
+    def post(self, resource: str, json: dict[str, Any]) -> dict[str, Any]:
+        return self.__call("POST", resource, json=json)
 
 
 
