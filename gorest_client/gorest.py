@@ -78,7 +78,7 @@ class GoRestClient:
 
         if r.ok:
             if "application/json" in r.headers["content-type"]:
-                return r.json()
+                return r
             raise ApiError(r.status_code, {"detail": "réponse non JSON !!!"})
         raise self._error(r)
 
@@ -102,17 +102,31 @@ class GoRestClient:
             params = {**params, "page[size]": taille}
             while True:
                 # -------------------------------> appel nommé k=v => mis auto. dans **options
-                obj = self.__call("GET", resource, params=params)
+                obj = self.__call("GET", resource, params=params).json()
                 yield from obj["data"]
                 if not obj["meta"]["has_more"]:
                     return
                 params["page[after]"] = obj["meta"]["next_cursor"]
 
     def get(self, resource: str, _id: str) -> dict[str, Any]:
-        return self.__call("GET", self._path(resource, _id))
+        r = self.__call("GET", self._path(resource, _id))
+        # ---------------> je peux enregistre l'etag pour garantir la valeur courante de l'objet
+        return r.json(), r.headers["ETag"]
 
     def post(self, resource: str, json: dict[str, Any]) -> dict[str, Any]:
-        return self.__call("POST", resource, json=json)
+        return self.__call("POST", resource, json=json).json()
+
+    def patch(
+            self, 
+            resource: str, 
+            _id: str, 
+            updates: dict[str, Any],
+            etag: str = ""
+        ) -> dict[str, Any]:
+            ## fonctionne si le etag a été modifié entre temps
+            headers = {"If-Match": etag} if etag else {}
+            return self.__call("PATCH", self._path(resource, _id), json=updates, headers=headers).json()
+
 
 
 
