@@ -788,6 +788,11 @@ class AuthError(ApiError): ...          # 401, 403
 class NotFound(ApiError): ...           # 404
 class ValidationFailed(ApiError): ...   # 422
 class RateLimited(ApiError): ...        # 429
+
+_PAR_STATUT: dict[int, type[ApiError]] = {
+    401: AuthError, 403: AuthError, 404: NotFound,
+    422: ValidationFailed, 429: RateLimited,
+}
 ```
 
 L'appelant écrit `except ValidationFailed as exc: afficher(exc.errors)` sans jamais manipuler un code numérique. L'atelier final assemble ces classes dans le module client.
@@ -1019,14 +1024,10 @@ async def compter(client: httpx.AsyncClient, ressource: str) -> tuple[str, int |
 
 
 async def main() -> None:
-    limite = asyncio.Semaphore(4)       # au plus 4 appels simultanés
+    ressources = ("users", "posts", "comments", "tasks")
 
     async with httpx.AsyncClient(base_url=BASE, timeout=10.0) as client:
-        async def borne(nom: str):
-            async with limite:
-                return await compter(client, nom)
-
-        resultats = await asyncio.gather(*(borne(n) for n in ("users", "posts", "comments", "tasks")))
+        resultats = await asyncio.gather(*(compter(client, n) for n in ressources))
 
     for nom, total in resultats:
         print(f"{nom:10} {total}")
