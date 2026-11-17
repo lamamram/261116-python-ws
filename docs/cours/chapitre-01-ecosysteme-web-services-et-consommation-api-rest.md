@@ -819,11 +819,12 @@ from urllib3.util.retry import Retry
 
 retry = Retry(
     total=3,                                          # 3 reprises au maximum
-    backoff_factor=0.5,                               # attente croissante entre les reprises
+    backoff_factor=0.5,    # attente croissante entre les reprises: b * 2 ** (k-1) k: tentative (1, 2, 3 ...)
+    backoff_jitter=0.5,   # fraction aléatoire pour éviter l'effet de troupeau en cas de multi threading , async ...
     status_forcelist=(429, 500, 502, 503, 504),       # codes jugés transitoires
     allowed_methods=frozenset({"GET", "HEAD", "OPTIONS"}),   # méthodes idempotentes uniquement
-    respect_retry_after_header=True,                  # honore Retry-After
-    raise_on_status=False,                            # rend la dernière réponse au lieu de lever RetryError
+    respect_retry_after_header=True,                  # honore l'entête Retry-After: xs donné par le serveur qui prends le pas de calcul du backoff automatique
+    raise_on_status=False,                            # rend la dernière réponse en erreur (4XX 5XX) au lieu de lever MaxRetryError
 )
 
 session = requests.Session()
