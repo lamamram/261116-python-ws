@@ -499,7 +499,7 @@ from fastapi import Query
 def lister_formations(
     level: Annotated[Level | None, Query(alias="filter[level]")] = None,
     recherche: Annotated[str | None, Query(alias="search", min_length=2, max_length=50)] = None,
-    tri: Annotated[Literal["code", "-code", "titre", "-titre"], Query(alias="sort")] = "code",
+    sort: Annotated[Literal["code", "-code", "titre", "-titre"], Query(alias="sort")] = "code",
     taille: Annotated[int, Query(alias="page[size]", ge=1, le=100)] = 25,
     apres: Annotated[str | None, Query(alias="page[after]")] = None,
 ):
@@ -1310,7 +1310,7 @@ class Stockage:
 
     # --- formations ------------------------------------------------------
     def lister_formations(self, level: Level | None, recherche: str | None,
-                          tri: str) -> list[FormationSchema]:
+                          sort: str) -> list[FormationSchema]:
         elements = list(self.formations.values())
         if level:
             elements = [f for f in elements if f.level == level]
@@ -1318,7 +1318,7 @@ class Stockage:
             terme = recherche.casefold()
             elements = [f for f in elements
                         if terme in f.titre.casefold() or terme in f.code.casefold()]
-        return sorted(elements, key=lambda f: getattr(f, tri.lstrip("-")),
+        return sorted(elements, key=lambda f: getattr(f, sort.lstrip("-")),
                       reverse=tri.startswith("-"))
 
     def formation(self, formation_id: uuid.UUID) -> FormationSchema:
@@ -1433,14 +1433,14 @@ def lister_formations(
     depot: Depot,
     level: Annotated[Level | None, Query(alias="filter[level]")] = None,
     recherche: Annotated[str | None, Query(alias="search", min_length=2, max_length=50)] = None,
-    tri: Annotated[Literal["code", "-code", "titre", "-titre", "duration", "-duration"],
+    sort: Annotated[Literal["code", "-code", "titre", "-titre", "duration", "-duration"],
                    Query(alias="sort")] = "code",
     taille: Annotated[int, Query(alias="page[size]", ge=1, le=100)] = 25,
     apres: Annotated[str | None, Query(alias="page[after]")] = None,
     compter: Annotated[bool, Query(alias="page[count]")] = False,
 ):
     """Liste filtrée, triée et paginée par curseur."""
-    return paginer(depot.lister_formations(level, recherche, tri), taille, apres, compter)
+    return paginer(depot.lister_formations(level, recherche, sort), taille, apres, compter)
 
 
 @router.get("/{formation_id}", response_model=FormationSchema, summary="Lire une formation",
