@@ -38,7 +38,7 @@ objectifs:
 Le dépôt `api-catalogue/` enrichi d'un service web `app/` qui expose :
 
 - les formations (liste filtrée, triée et paginée, lecture, création, modification partielle, suppression) ;
-- les sessions d'une formation (liste et création) ;
+- les interventions d'une formation (liste et création) ;
 - une route d'administration protégée par BASIC ;
 - des écritures protégées par un jeton Bearer avec portée ;
 - une documentation Swagger UI générée automatiquement ;
@@ -78,7 +78,7 @@ Les contraintes REST vues le jour 1 se traduisent en décisions concrètes :
 | Contrainte REST | Décision de conception pour l'API Catalogue |
 |---|---|
 | Client–serveur | l'API ne renvoie que des données (JSON), jamais de HTML ni de logique d'affichage |
-| Sans état | pas de session serveur : chaque requête porte son `Authorization`, la pagination utilise un curseur transmis par le client |
+| Sans état | pas de intervention serveur : chaque requête porte son `Authorization`, la pagination utilise un curseur transmis par le client |
 | Cache | les ressources lisibles peuvent exposer un `ETag` (extension de l'atelier) |
 | Interface uniforme | URL en noms pluriels, verbes HTTP standard, mêmes codes de statut et même format d'erreur partout |
 | Système en couches | l'API ne suppose pas être appelée directement : elle sera derrière un serveur, un proxy ou une passerelle |
@@ -92,8 +92,8 @@ Une **ressource** est un concept métier que les consommateurs veulent lire ou m
 
 | Ressource | Description | Identifiant | Relations |
 |---|---|---|---|
-| `formation` | une formation du catalogue (code, titre, durée, niveau) | UUID | possède des sessions |
-| `session` | une date de réalisation d'une formation (début, lieu, places) | UUID | appartient à une formation |
+| `formation` | une formation du catalogue (code, titre, durée, niveau) | UUID | possède des interventions |
+| `intervention` | une date de réalisation d'une formation (début, lieu, places) | UUID | appartient à une formation |
 
 **Choix de l'identifiant.** Le jour 1 a montré que GoRest est passé d'identifiants entiers à des UUID. Un identifiant séquentiel (`/formations/17`) révèle le volume de données et invite à deviner les voisins (`/formations/18`). Un **UUID** est opaque et peut être généré par n'importe quel client ou serveur sans coordination. Le `code` métier (`PYT100614-F`) reste un champ de la ressource, unique mais distinct de l'identifiant technique.
 
@@ -104,12 +104,12 @@ Une **ressource** est un concept métier que les consommateurs veulent lire ou m
 | `GET /v1/formations` | `GET /v1/getFormations` | le verbe est dans la méthode HTTP |
 | `GET /v1/formations/{id}` | `GET /v1/formation?id=12` | un élément a sa propre URL |
 | `DELETE /v1/formations/{id}` | `POST /v1/formations/{id}/supprimer` | `DELETE` existe |
-| `GET /v1/formations/{id}/sessions` | `GET /v1/sessions?formation=…` comme seule option | la relation de contenance est visible dans l'URL |
+| `GET /v1/formations/{id}/interventions` | `GET /v1/interventions?formation=…` comme seule option | la relation de contenance est visible dans l'URL |
 | `/v1/formations` (pluriel) | `/v1/formation` | une collection est un pluriel, partout |
 | `/v1/formations` en minuscules | `/v1/Formations` | les URL sont sensibles à la casse |
 
 > [!TIP] Profondeur maximale
-> Limiter l'imbrication à deux niveaux (`/formations/{id}/sessions`). Au-delà, exposer la ressource enfant à la racine avec un filtre : `/v1/sessions?filter[formation_id]=…`.
+> Limiter l'imbrication à deux niveaux (`/formations/{id}/interventions`). Au-delà, exposer la ressource enfant à la racine avec un filtre : `/v1/interventions?filter[formation_id]=…`.
 
 **Le versionnement dès le premier jour.** Le préfixe `/v1` figure dans toutes les URL. Le jour 1 a montré ce qu'un changement incompatible casse chez les consommateurs : la version 2 d'une API se publie sous `/v2`, pendant que `/v1` continue de répondre le temps de la migration.
 
@@ -134,13 +134,13 @@ Le tableau ci-dessous est le **contrat de la ressource `formation`** que les sta
 - **`409 Conflict`** : la requête est valide en elle-même, mais incompatible avec l'état actuel (code déjà pris).
 - **`422 Unprocessable Content`** : la requête est bien formée, mais une donnée est invalide. `400` est réservé aux requêtes qu'on ne peut même pas interpréter (curseur illisible, corps qui n'est pas du JSON).
 
-**Les actions qui ne sont pas du CRUD.** Annuler une session n'est ni une création ni une suppression de ressource. Trois façons de le modéliser :
+**Les actions qui ne sont pas du CRUD.** Annuler une intervention n'est ni une création ni une suppression de ressource. Trois façons de le modéliser :
 
 | Approche | Exemple | Quand l'utiliser |
 |---|---|---|
-| Changer un champ d'état | `PATCH /v1/sessions/{id}` avec `{"statut": "annulee"}` | l'état est une propriété naturelle de la ressource |
-| Créer une ressource d'événement | `POST /v1/sessions/{id}/annulations` | on veut conserver la trace (motif, date) |
-| Sous-ressource d'action | `POST /v1/sessions/{id}/annuler` | dernier recours, quand aucune des deux autres ne convient |
+| Changer un champ d'état | `PATCH /v1/interventions/{id}` avec `{"statut": "annulee"}` | l'état est une propriété naturelle de la ressource |
+| Créer une ressource d'événement | `POST /v1/interventions/{id}/annulations` | on veut conserver la trace (motif, date) |
+| Sous-ressource d'action | `POST /v1/interventions/{id}/annuler` | dernier recours, quand aucune des deux autres ne convient |
 
 Pour le fil rouge, l'annulation passe par un champ `statut` modifiable.
 
@@ -224,14 +224,14 @@ Le curseur est **opaque pour le client** : ici, le décalage encodé en base64. 
 | Documentation exécutable | le contrat OpenAPI est généré et testé, pas rédigé à côté |
 | Journalisation utile | un identifiant de requête (`request_id`) dans chaque réponse d'erreur et chaque ligne de log |
 
-### 🛠️ Micro-atelier 5 — Concevoir le contrat de la ressource `session` (25 min)
+### 🛠️ Micro-atelier 5 — Concevoir le contrat de la ressource `intervention` (25 min)
 
 **Consignes** (en binômes, sur papier, tableau ou éditeur) :
 
-1. lister les champs d'une `session` (nom, type, obligatoire ou non, contraintes) ;
-2. écrire le tableau « action, méthode et URL, corps, succès, erreurs » des opérations **liste** et **création** d'une session d'une formation ;
+1. lister les champs d'une `intervention` (nom, type, obligatoire ou non, contraintes) ;
+2. écrire le tableau « action, méthode et URL, corps, succès, erreurs » des opérations **liste** et **création** d'une intervention d'une formation ;
 3. décider de la réponse quand la formation parente n'existe pas (`404`) et quand la date de début est dans le passé (`422`) ;
-4. proposer la manière d'annuler une session.
+4. proposer la manière d'annuler une intervention.
 
 **Corrigé formateur.**
 
@@ -246,8 +246,8 @@ Le curseur est **opaque pour le client** : ici, le décalage encodé en base64. 
 
 | Action | Méthode et URL | Succès | Erreurs |
 |---|---|---|---|
-| Lister | `GET /v1/formations/{id}/sessions` | `200` + page | `404` (formation inconnue) |
-| Créer | `POST /v1/formations/{id}/sessions` | `201` + session créée | `401`, `403`, `404`, `422` |
+| Lister | `GET /v1/formations/{id}/interventions` | `200` + page | `404` (formation inconnue) |
+| Créer | `POST /v1/formations/{id}/interventions` | `201` + intervention créée | `401`, `403`, `404`, `422` |
 
 ![Contrat de l'API Catalogue](../contenus/contrat-api-catalogue.svg)
 
@@ -597,7 +597,7 @@ changements = donnees.model_dump(exclude_unset=True)
 from datetime import date
 from pydantic import field_validator
 
-class SessionCreate(BaseModel):
+class InterventionCreate(BaseModel):
     date_debut: date
 
     @field_validator("date_debut")
@@ -942,7 +942,7 @@ app = FastAPI(
                 "les écritures exigent un jeton Bearer portant `catalogue:write`.",
     openapi_tags=[
         {"name": "formations", "description": "Fiches du catalogue."},
-        {"name": "sessions", "description": "Dates de réalisation d'une formation."},
+        {"name": "interventions", "description": "Dates de réalisation d'une formation."},
         {"name": "administration", "description": "Statistiques (BASIC)."},
     ],
 )
@@ -1015,7 +1015,7 @@ def client():
 | 1 | Squelette : package `app`, route de santé, variables d'environnement | 10 min |
 | 2 | Modèles Pydantic et stockage en mémoire | 15 min |
 | 3 | Routes des formations (liste paginée, lecture, création, modification, suppression) | 25 min |
-| 4 | Erreurs Problem Details et routes des sessions | 10 min |
+| 4 | Erreurs Problem Details et routes des interventions | 10 min |
 | 5 | Sécurité : Bearer sur les écritures, BASIC sur l'administration | 10 min |
 | 6 | Tests `pytest`, puis scénario avec `catalogue_client` | 20 min |
 
@@ -1039,7 +1039,7 @@ api-catalogue/
 │   └── routes/
 │       ├── __init__.py
 │       ├── formations.py
-│       ├── sessions.py
+│       ├── interventions.py
 │       └── admin.py
 ├── tests/
 │   └── test_api.py
@@ -1152,7 +1152,7 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI
 
 from .erreurs import installer_gestionnaires
-from .routes import admin, formations, sessions
+from .routes import admin, formations, interventions
 
 load_dotenv()
 
@@ -1163,7 +1163,7 @@ app = FastAPI(
                 "les écritures exigent un jeton Bearer portant `catalogue:write`.",
     openapi_tags=[
         {"name": "formations", "description": "Fiches du catalogue."},
-        {"name": "sessions", "description": "Dates de réalisation d'une formation."},
+        {"name": "interventions", "description": "Dates de réalisation d'une formation."},
         {"name": "administration", "description": "Statistiques (authentification BASIC)."},
         {"name": "technique", "description": "Supervision."},
     ],
@@ -1172,7 +1172,7 @@ installer_gestionnaires(app)
 
 v1 = APIRouter(prefix="/v1")
 v1.include_router(formations.router)
-v1.include_router(sessions.router)
+v1.include_router(interventions.router)
 v1.include_router(admin.router)
 
 
@@ -1204,7 +1204,7 @@ class Niveau(str, Enum):
     avance = "avance"
 
 
-class StatutSession(str, Enum):
+class StatutIntervention(str, Enum):
     planifiee = "planifiee"
     confirmee = "confirmee"
     annulee = "annulee"
@@ -1246,13 +1246,13 @@ class Formation(FormationBase):
     modifie_le: datetime
 
 
-class SessionCreate(BaseModel):
+class InterventionCreate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     date_debut: date
     lieu: str = Field(min_length=2, max_length=80)
     places: int = Field(ge=1, le=30)
-    statut: StatutSession = StatutSession.planifiee
+    statut: StatutIntervention = StatutIntervention.planifiee
 
     @field_validator("date_debut")
     @classmethod
@@ -1262,7 +1262,7 @@ class SessionCreate(BaseModel):
         return valeur
 
 
-class SessionFormation(SessionCreate):
+class InterventionFormation(InterventionCreate):
     id: uuid.UUID
     formation_id: uuid.UUID
 
@@ -1278,14 +1278,14 @@ class PageFormations(BaseModel):
     meta: Meta
 
 
-class PageSessions(BaseModel):
-    data: list[SessionFormation]
+class PageInterventions(BaseModel):
+    data: list[InterventionFormation]
     meta: Meta
 
 
 class Statistiques(BaseModel):
     formations: int
-    sessions: int
+    interventions: int
     demandeur: str
 ```
 
@@ -1297,8 +1297,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .erreurs import ErreurApi
-from .schemas import (Formation, FormationCreate, Niveau, SessionCreate,
-                      SessionFormation)
+from .schemas import (Formation, FormationCreate, Niveau, InterventionCreate,
+                      InterventionFormation)
 
 
 class Stockage:
@@ -1306,7 +1306,7 @@ class Stockage:
 
     def __init__(self) -> None:
         self.formations: dict[uuid.UUID, Formation] = {}
-        self.sessions: dict[uuid.UUID, SessionFormation] = {}
+        self.interventions: dict[uuid.UUID, InterventionFormation] = {}
 
     # --- formations ------------------------------------------------------
     def lister_formations(self, niveau: Niveau | None, recherche: str | None,
@@ -1347,22 +1347,22 @@ class Stockage:
     def supprimer_formation(self, formation_id: uuid.UUID) -> None:
         self.formation(formation_id)
         del self.formations[formation_id]
-        self.sessions = {k: s for k, s in self.sessions.items()
+        self.interventions = {k: s for k, s in self.interventions.items()
                          if s.formation_id != formation_id}
 
-    # --- sessions --------------------------------------------------------
-    def sessions_de(self, formation_id: uuid.UUID) -> list[SessionFormation]:
+    # --- interventions --------------------------------------------------------
+    def interventions_de(self, formation_id: uuid.UUID) -> list[InterventionFormation]:
         self.formation(formation_id)
-        return sorted((s for s in self.sessions.values() if s.formation_id == formation_id),
+        return sorted((s for s in self.interventions.values() if s.formation_id == formation_id),
                       key=lambda s: s.date_debut)
 
-    def creer_session(self, formation_id: uuid.UUID,
-                      donnees: SessionCreate) -> SessionFormation:
+    def creer_intervention(self, formation_id: uuid.UUID,
+                      donnees: InterventionCreate) -> InterventionFormation:
         self.formation(formation_id)
-        session = SessionFormation(id=uuid.uuid4(), formation_id=formation_id,
+        intervention = InterventionFormation(id=uuid.uuid4(), formation_id=formation_id,
                                    **donnees.model_dump())
-        self.sessions[session.id] = session
-        return session
+        self.interventions[intervention.id] = intervention
+        return intervention
 ```
 
 **Corrigé — `app/pagination.py`**
@@ -1486,9 +1486,9 @@ La sécurité manque encore : `ECRITURE` est défini à l'étape 5. Pour avancer
 - [ ] un `PATCH` avec `{"code": "AUT100000-X"}` renvoie `422` (champ interdit) ;
 - [ ] un `DELETE` répond `204` sans corps, un second `DELETE` répond `404`.
 
-#### Étape 4 — Sessions et erreurs uniformes (10 min)
+#### Étape 4 — Interventions et erreurs uniformes (10 min)
 
-**Corrigé — `app/routes/sessions.py`**
+**Corrigé — `app/routes/interventions.py`**
 
 ```python
 import uuid
@@ -1498,37 +1498,37 @@ from fastapi import APIRouter, Query, status
 
 from ..dependances import Depot
 from ..pagination import paginer
-from ..schemas import PageSessions, SessionCreate, SessionFormation
+from ..schemas import PageInterventions, InterventionCreate, InterventionFormation
 from ..securite import ECRITURE
 
-router = APIRouter(prefix="/formations/{formation_id}/sessions", tags=["sessions"])
+router = APIRouter(prefix="/formations/{formation_id}/interventions", tags=["interventions"])
 
 
-@router.get("", response_model=PageSessions, summary="Lister les sessions d'une formation",
+@router.get("", response_model=PageInterventions, summary="Lister les interventions d'une formation",
             responses={404: {"description": "Formation inconnue"}})
-def lister_sessions(
+def lister_interventions(
     formation_id: uuid.UUID,
     depot: Depot,
     taille: Annotated[int, Query(alias="page[size]", ge=1, le=100)] = 25,
     apres: Annotated[str | None, Query(alias="page[after]")] = None,
     compter: Annotated[bool, Query(alias="page[count]")] = False,
 ):
-    return paginer(depot.sessions_de(formation_id), taille, apres, compter)
+    return paginer(depot.interventions_de(formation_id), taille, apres, compter)
 
 
-@router.post("", response_model=SessionFormation, status_code=status.HTTP_201_CREATED,
-             dependencies=ECRITURE, summary="Planifier une session",
+@router.post("", response_model=InterventionFormation, status_code=status.HTTP_201_CREATED,
+             dependencies=ECRITURE, summary="Planifier une intervention",
              responses={404: {"description": "Formation inconnue"}})
-def creer_session(formation_id: uuid.UUID, donnees: SessionCreate,
-                  depot: Depot) -> SessionFormation:
-    return depot.creer_session(formation_id, donnees)
+def creer_intervention(formation_id: uuid.UUID, donnees: InterventionCreate,
+                  depot: Depot) -> InterventionFormation:
+    return depot.creer_intervention(formation_id, donnees)
 ```
 
-La version 1 ne propose pas de lecture d'une session isolée : la réponse du `POST` contient la session complète, et il n'y a donc pas d'en-tête `Location`. Ce choix est un engagement de contrat : ajouter la route plus tard est compatible, la retirer ne le serait pas.
+La version 1 ne propose pas de lecture d'une intervention isolée : la réponse du `POST` contient la intervention complète, et il n'y a donc pas d'en-tête `Location`. Ce choix est un engagement de contrat : ajouter la route plus tard est compatible, la retirer ne le serait pas.
 
 **Point de contrôle**
 
-- [ ] créer une session pour une formation inexistante renvoie `404` au format Problem Details (`code: not_found`) ;
+- [ ] créer une intervention pour une formation inexistante renvoie `404` au format Problem Details (`code: not_found`) ;
 - [ ] une date de début passée renvoie `422` avec `errors[0].pointer == "/date_debut"` ;
 - [ ] `GET /v1/route-inconnue` et `DELETE /v1/sante` renvoient chacun un document `application/problem+json` (`404` et `405`).
 
@@ -1633,7 +1633,7 @@ router = APIRouter(prefix="/admin", tags=["administration"])
 
 @router.get("/statistiques", response_model=Statistiques, summary="Statistiques du catalogue")
 def statistiques(demandeur: Annotated[str, Depends(exiger_admin)], depot: Depot) -> Statistiques:
-    return Statistiques(formations=len(depot.formations), sessions=len(depot.sessions),
+    return Statistiques(formations=len(depot.formations), interventions=len(depot.interventions),
                         demandeur=demandeur)
 ```
 
@@ -1761,9 +1761,9 @@ def test_curseur_invalide(client):
     assert r.status_code == 400
 
 
-def test_session_dans_le_passe_refusee(client):
+def test_intervention_dans_le_passe_refusee(client):
     formation = client.post("/v1/formations", json=FORMATION, headers=ECRITURE).json()
-    r = client.post(f"/v1/formations/{formation['id']}/sessions", headers=ECRITURE,
+    r = client.post(f"/v1/formations/{formation['id']}/interventions", headers=ECRITURE,
                     json={"date_debut": "2020-01-06", "lieu": "Paris", "places": 8})
     assert r.status_code == 422
     assert r.json()["errors"][0]["pointer"] == "/date_debut"
@@ -1785,8 +1785,8 @@ python -m pytest -q
 
 ```python
         adaptateur = HTTPAdapter(max_retries=retry)
-        self.session.mount("https://", adaptateur)
-        self.session.mount("http://", adaptateur)
+        self.intervention.mount("https://", adaptateur)
+        self.intervention.mount("http://", adaptateur)
 ```
 
 **Corrigé — `verifier_avec_client.py`**
@@ -1865,7 +1865,7 @@ python verifier_avec_client.py
 1. **`ETag` et `If-Match`.** Calculer un `ETag` à partir de `modifie_le`, le renvoyer sur `GET /v1/formations/{id}`, répondre `304` à un `If-None-Match` identique et `412` à un `If-Match` périmé. Le client du jour 1 sait déjà envoyer `If-Match`.
 2. **`Idempotency-Key`.** Mémoriser la réponse d'un `POST` pendant 24 heures par clé, et la rejouer à l'identique avec `Idempotent-Replayed: true`.
 3. **Limitation de débit.** Compter les appels par jeton et répondre `429` avec `Retry-After`.
-4. **Annulation d'une session.** Ajouter `PATCH /v1/formations/{id}/sessions/{session_id}` pour changer le `statut`, et refuser une session annulée de plus de 30 places.
+4. **Annulation d'une intervention.** Ajouter `PATCH /v1/formations/{id}/interventions/{intervention_id}` pour changer le `statut`, et refuser une intervention annulée de plus de 30 places.
 5. **Journal de requêtes.** Un middleware (`@app.middleware("http")`) qui consigne méthode, chemin, statut et durée, sans l'en-tête `Authorization`.
 
 ---
@@ -1888,7 +1888,7 @@ api-catalogue/
 │   ├── stockage.py               # stockage en mémoire (remplacé le jour 3)
 │   ├── dependances.py            # injection du stockage
 │   ├── securite.py               # BASIC, Bearer et portées
-│   └── routes/                   # formations, sessions, admin
+│   └── routes/                   # formations, interventions, admin
 ├── tests/test_api.py             # tests pytest avec TestClient
 └── verifier_avec_client.py       # scénario de bout en bout avec le client du jour 1
 ```
