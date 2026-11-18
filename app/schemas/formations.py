@@ -9,23 +9,20 @@ from pydantic import BaseModel as BaseSchema, ConfigDict, Field, field_validator
 
 class Level(str, Enum):
     beginner = "initiation"
-    medium = "intermediaire"
+    medium = "intermédiaire"
     advanced = "avancé"
 
 
-class FormationSchema(BaseSchema):
-    # ------------> config générale d'une schéma: str_strip_whitespace=True permet de supprimer les espaces en début et fin de chaîne
-    model_config = ConfigDict(str_strip_whitespace=True)
-    # -------------------------------------------------> documentation d'openapi
-    code: str = Field(pattern=r"^[A-Z]{3}\d{6}-[A-Z]$", examples=["PYT100614-F"])
-    titre: str = Field(min_length=3, max_length=120)
-    # description: str | None = Field(default=None, max_length=2000)
-    description: Optional[str] = Field(default=None, max_length=2000)
-    duration: int = Field(ge=1, le=10)
-    level: Level
+class FormationEditValidatorsMixin(BaseSchema):
+    """
+    Mixin contenant les validateurs pour les champs des formations.
+    
+    à attacher aux schémas de création et de mise à jour des formations.
 
-class FormationCreate(FormationSchema):
-    @field_validator("duration")
+    ATTENTION pour un validateur de champs: ajouter check_fields=False 
+    si le champ n'est pas encore présent dans l'instance du schéma ici BaseSchema.
+    """
+    @field_validator("duration", check_fields=False)
     @classmethod
     def odd_duration(cls, value: int):
         """
@@ -34,6 +31,8 @@ class FormationCreate(FormationSchema):
         peut transformer la valeur du champs en paramètre et la retourner: formatter
 
         peut bloquer la validation pour des considérations avancées, métier
+
+        mode par défaut: "before" (avant la création de l'instance) donc méthode de classe avec @classmethod
         """
         if not value % 2:
             raise ValueError(f"{value} doit être impair !!")
@@ -43,21 +42,43 @@ class FormationCreate(FormationSchema):
     def level_matching_duration(self):
         """
         un validateur sur plusieurs champs, qui nécessite l'instance du schéma
+
+        after: ce validateur est exécuté après la création de l'instance du schéma
         """
         matches = {
-            "initiation": 1,
-            "intermediaire": 3,
+            "initiation": 3,
+            "intermédiaire": 3,
             "avancé": 5
         }
         if self.duration < matches[self.level]:
             raise ValueError(f"une formation de niveau {self.level} demande au moins {matches[self.level]} j")
         return self
 
-class FormationUpdate(BaseSchema):
+
+class FormationSchema(BaseSchema):
+    # ------------> config générale d'une schéma: str_strip_whitespace=True permet de supprimer les espaces en début et fin de chaîne
+    model_config = ConfigDict(str_strip_whitespace=True)
+    # -------------------------------------------------> documentation d'openapi
+    code: str = Field(pattern=r"^[A-Z]{3}\d{6}-[A-Z]$", examples=["PYT100614-F"])
+    title: str = Field(min_length=3, max_length=120)
+    # description: str | None = Field(default=None, max_length=2000)
+    description: Optional[str] = Field(default=None, max_length=2000)
+    duration: int = Field(ge=1, le=10)
+    level: Level
+
+class FormationResponse(FormationSchema):
+    id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+class FormationCreate(FormationSchema, FormationEditValidatorsMixin):
+    ...
+
+class FormationUpdate(FormationEditValidatorsMixin):
     # ---------------------------------------------------> interdit les champs supplémentaires non définis dans le schéma
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
-    titre: str | None = Field(default=None, min_length=3, max_length=120)
+    title: str | None = Field(default=None, min_length=3, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
     duration: int | None = Field(default=None, ge=1, le=10)
     level: Level | None = None

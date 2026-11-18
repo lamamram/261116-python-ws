@@ -6,7 +6,7 @@ import secrets
 schema_basic = HTTPBasic(auto_error=False)
 
 
-def authenticate(
+def authenticate_basic(
         # --------------> schéma pydantic pour certifier que on a username et passowrd dedans
         # ---------------------------------------------------> classe fastapi qui gère (décodage..) la str base64 encodée du entête Authorization: Basic erjfekrfbre==
         # -------------------------------------------> injection dépendance contrôlée par FASTAPI (

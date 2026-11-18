@@ -7,7 +7,7 @@ duree: 7h
 objectifs:
   - concevoir le contrat d'une API REST (ressources, URL, méthodes, codes de statut, pagination, erreurs)
   - choisir entre Flask, Sanic et FastAPI selon le besoin et expliquer la différence entre WSGI et ASGI
-  - déclarer des routes et des méthodes avec FastAPI et lire la documentation OpenAPI générée
+  - déclarer des routers et des méthodes avec FastAPI et lire la documentation OpenAPI générée
   - accepter des paramètres de chemin, de requête, d'en-tête et de corps, validés par des modèles Pydantic
   - renvoyer des erreurs uniformes au format Problem Details (RFC 9457)
   - protéger l'API avec l'authentification BASIC et Bearer et tester l'ensemble avec pytest et le client du jour 1
@@ -19,7 +19,7 @@ objectifs:
 > **Projet fil rouge** : API Catalogue — un catalogue de formations exposé en REST ; le jour 3, le même contrat est réimplémenté avec Django-Ninja
 > **Blocs couverts** : 3 (implémenter un service web REST) · 4 (implémenter un service web avec Python, atelier FastAPI)
 
-**Prérequis** : journée 1 terminée (dépôt `api-catalogue/` avec le module `catalogue_client`), notions de classes, d'annotations de type et d'exceptions en Python.
+**Prérequis** : journée 1 terminée (dépôt `api-catalogue/` avec le module `gorest_client`), notions de classes, d'annotations de type et d'exceptions en Python.
 **Durée** : 7 h (mardi 9h00 – 17h30, pause déjeuner 12h30 – 13h30, deux pauses de 15 minutes).
 
 ## Objectifs pédagogiques
@@ -45,7 +45,7 @@ Le dépôt `api-catalogue/` enrichi d'un service web `app/` qui expose :
 - une suite de tests `pytest` et un script qui rejoue le scénario du jour 1 contre l'API locale.
 
 > [!NOTE] Choix pédagogique
-> Le stockage est **en mémoire** (un dictionnaire derrière une classe `Stockage`). La base de données n'est pas le sujet du jour : le contrat HTTP, la validation et la sécurité le sont. Le jour 3, l'ORM de Django remplacera ce stockage, et le `catalogue_client` du jour 1 servira à vérifier que les deux implémentations respectent exactement le même contrat.
+> Le stockage est **en mémoire** (un dictionnaire derrière une classe `Stockage`). La base de données n'est pas le sujet du jour : le contrat HTTP, la validation et la sécurité le sont. Le jour 3, l'ORM de Django remplacera ce stockage, et le `gorest_client` du jour 1 servira à vérifier que les deux implémentations respectent exactement le même contrat.
 
 ## Organisation de la journée
 
@@ -55,7 +55,7 @@ Le dépôt `api-catalogue/` enrichi d'un service web `app/` qui expose :
 | 09h15 – 09h55 | **Théorie** — Concevoir une API REST : ressources, méthodes, sérialisation | Bloc 3 |
 | 09h55 – 10h45 | **Pratique** — Conception du contrat de l'API Catalogue | Bloc 3 |
 | 10h45 – 11h00 | Pause | |
-| 11h00 – 12h30 | **Pratique guidée** — FastAPI : routes, paramètres, modèles Pydantic | Bloc 4 |
+| 11h00 – 12h30 | **Pratique guidée** — FastAPI : routers, paramètres, modèles Pydantic | Bloc 4 |
 | 12h30 – 13h30 | Déjeuner | |
 | 13h30 – 15h00 | **Pratique guidée** — validation, erreurs, authentification BASIC et Bearer, tests | Bloc 4 |
 | 15h00 – 15h15 | Pause | |
@@ -92,8 +92,8 @@ Une **ressource** est un concept métier que les consommateurs veulent lire ou m
 
 | Ressource | Description | Identifiant | Relations |
 |---|---|---|---|
-| `formation` | une formation du catalogue (code, titre, durée, level) | UUID | possède des interventions |
-| `intervention` | une date de réalisation d'une formation (début, lieu, places) | UUID | appartient à une formation |
+| `formation` | une formation du catalogue (code, title, durée, level) | UUID | possède des interventions |
+| `intervention` | une date de réalisation d'une formation (début, location, places) | UUID | appartient à une formation |
 
 **Choix de l'identifiant.** Le jour 1 a montré que GoRest est passé d'identifiants entiers à des UUID. Un identifiant séquentiel (`/formations/17`) révèle le volume de données et invite à deviner les voisins (`/formations/18`). Un **UUID** est opaque et peut être généré par n'importe quel client ou serveur sans coordination. Le `code` métier (`PYT100614-F`) reste un champ de la ressource, unique mais distinct de l'identifiant technique.
 
@@ -193,7 +193,6 @@ Le contrat d'une liste est plus riche que celui d'un élément. Pour garder la c
 | Paramètre | Rôle | Exemple |
 |---|---|---|
 | `filter[level]` | filtre sur une valeur | `?filter[level]=avance` |
-| `search` | recherche textuelle libre | `?search=python` |
 | `sort` | tri ; préfixe `-` pour décroissant | `?sort=-duration` |
 | `page[size]` | éléments par page, de 1 à 100 (25 par défaut) | `?page[size]=10` |
 | `page[after]` | curseur opaque de la page suivante | `?page[after]=Mg==` |
@@ -203,7 +202,7 @@ La réponse d'une liste :
 
 ```json
 {
-  "data": [ { "id": "…", "code": "PYT100614-F", "titre": "Python Avancé : Web Services" } ],
+  "data": [ { "id": "…", "code": "PYT100614-F", "title": "Python Avancé : Web Services" } ],
   "meta": { "has_more": true, "next_cursor": "Mg==", "total": null }
 }
 ```
@@ -239,8 +238,8 @@ Le curseur est **opaque pour le client** : ici, le décalage encodé en base64. 
 |---|---|---|---|
 | `id` | UUID | généré par le serveur | — |
 | `formation_id` | UUID | généré à partir de l'URL | formation existante |
-| `date_debut` | date ISO 8601 | oui | postérieure à aujourd'hui |
-| `lieu` | texte | oui | 2 à 80 caractères |
+| `start_date` | date ISO 8601 | oui | postérieure à aujourd'hui |
+| `location` | texte | oui | 2 à 80 caractères |
 | `places` | entier | oui | de 1 à 30 |
 | `statut` | énumération | non (défaut `planifiee`) | `planifiee`, `confirmee`, `annulee` |
 
@@ -290,7 +289,7 @@ Un framework ASGI peut exécuter à la fois des fonctions asynchrones (`async de
 from flask import Flask, abort
 
 app = Flask(__name__)
-FORMATIONS = {"PYT100614-F": {"code": "PYT100614-F", "titre": "Python Avancé : Web Services"}}
+FORMATIONS = {"PYT100614-F": {"code": "PYT100614-F", "title": "Python Avancé : Web Services"}}
 
 @app.get("/formations/<code>")
 def lire(code: str):
@@ -321,12 +320,12 @@ from pydantic import BaseModel
 
 class FormationSchema(BaseModel):
     code: str
-    titre: str
+    title: str
 
 app = FastAPI()
 
 @app.get("/formations/{code}")
-def lire(code: str) -> FormationSchema:
+def lire(code: str) -> FormationResponse:
     if code not in FORMATIONS:
         raise HTTPException(status_code=404, detail="Formation inconnue")
     return FORMATIONS[code]
@@ -353,7 +352,7 @@ L'option `standard` installe FastAPI avec ses outils usuels : le serveur Uvicorn
 
 ```
 api-catalogue/
-├── catalogue_client/        # jour 1
+├── gorest_client/        # jour 1
 ├── app/
 │   ├── __init__.py          # fichier vide : app est un package
 │   └── main.py
@@ -373,8 +372,8 @@ from fastapi import FastAPI
 app = FastAPI(title="API Catalogue", version="1.0.0")
 
 
-@app.get("/v1/sante")
-def sante() -> dict[str, str]:
+@app.get("/v1/health")
+def health() -> dict[str, str]:
     return {"statut": "ok"}
 ```
 
@@ -398,9 +397,9 @@ La commande `fastapi dev` démarre un serveur de développement avec **rechargem
 ### 🛠️ Micro-atelier 6 — Première route et premier contrat (15 min)
 
 1. Créer `app/__init__.py`, `app/main.py` et `pyproject.toml` comme ci-dessus, puis démarrer `fastapi dev`.
-2. Appeler la route avec `curl.exe -i http://127.0.0.1:8000/v1/sante` : relever le statut, le `Content-Type` et le corps.
+2. Appeler la route avec `curl.exe -i http://127.0.0.1:8000/v1/health` : relever le statut, le `Content-Type` et le corps.
 3. Ouvrir `/docs`, déplier la route, cliquer sur **Try it out** puis **Execute**.
-4. Ouvrir `/openapi.json` et retrouver le chemin `/v1/sante` et sa méthode.
+4. Ouvrir `/openapi.json` et retrouver le chemin `/v1/health` et sa méthode.
 5. Modifier le titre de l'application : constater le rechargement automatique et le changement dans `/docs`.
 
 **Question de réflexion.** Le code ne comporte aucune ligne de documentation. D'où viennent les informations de `/docs` ? *(Réponse : des décorateurs, des annotations de type et des modèles Pydantic : FastAPI les lit et produit le contrat OpenAPI.)*
@@ -421,7 +420,7 @@ Les décorateurs acceptent des options qui alimentent à la fois le **comporteme
 | Option | Effet |
 |---|---|
 | `status_code=201` | code renvoyé en cas de succès (aussi affiché dans OpenAPI) |
-| `response_model=FormationSchema` | modèle de la réponse : filtre, valide et documente |
+| `response_model=FormationResponse` | modèle de la réponse : filtre, valide et documente |
 | `tags=["formations"]` | regroupe les routes dans `/docs` |
 | `summary="Lister les formations"` | titre court ; la docstring de la fonction sert de description |
 | `responses={404: {"description": "Formation inconnue"}}` | documente les codes d'erreur possibles |
@@ -445,11 +444,11 @@ def lister_formations(): ...
 from fastapi import APIRouter, FastAPI
 from .routers import formations
 
-v1 = APIRouter(prefix="/v1")
-v1.include_router(formations.router)
+version = APIRouter(prefix="/v1")
+version.include_router(formations.router)
 
 app = FastAPI(title="API Catalogue", version="1.0.0")
-app.include_router(v1)
+app.include_router(version)
 ```
 
 L'URL finale est la concaténation des préfixes : `/v1` + `/formations` + `""` donne `/v1/formations`. Changer de version, plus tard, consiste à ajouter un second routeur `/v2`.
@@ -483,7 +482,7 @@ FastAPI déduit l'**origine** de chaque paramètre à partir de la signature de 
 import uuid
 
 @router.get("/{formation_id}")
-def lire_formation(formation_id: uuid.UUID) -> FormationSchema:
+def lire_formation(formation_id: uuid.UUID) -> FormationResponse:
     ...
 ```
 
@@ -498,10 +497,9 @@ from fastapi import Query
 @router.get("")
 def lister_formations(
     level: Annotated[Level | None, Query(alias="filter[level]")] = None,
-    recherche: Annotated[str | None, Query(alias="search", min_length=2, max_length=50)] = None,
-    sort: Annotated[Literal["code", "-code", "titre", "-titre"], Query(alias="sort")] = "code",
-    taille: Annotated[int, Query(alias="page[size]", ge=1, le=100)] = 25,
-    apres: Annotated[str | None, Query(alias="page[after]")] = None,
+    sort: Annotated[Literal["code", "-code", "title", "-title"], Query(alias="sort")] = "code",
+    size: Annotated[int, Query(alias="page[size]", ge=1, le=100)] = 25,
+    after: Annotated[str | None, Query(alias="page[after]")] = None,
 ):
     ...
 ```
@@ -509,27 +507,28 @@ def lister_formations(
 Points à retenir :
 
 - `Annotated[type, Query(...)]` est la forme recommandée : le type et ses contraintes sont réunis, la valeur par défaut reste une vraie valeur par défaut Python ;
-- `alias="page[size]"` est indispensable, car `page[size]` n'est pas un nom de variable Python valide ; le nom Python (`taille`) et le nom exposé (`page[size]`) sont découplés ;
+- `alias="page[size]"` est indispensable, car `page[size]` n'est pas un nom de variable Python valide ; le nom Python (`size`) et le nom exposé (`page[size]`) sont découplés ;
 - `ge`, `le`, `min_length`, `max_length`, `pattern` expriment les contraintes, et apparaissent dans la documentation ;
-- `Literal[...]` ou une `Enum` limite les valeurs autorisées : un tri sur un champ inexistant est refusé avec un `422` au lieu de provoquer une erreur interne ;
+- `Literal[...]` ou une `Enum` limite les valeurs autorisées : un tri sur un champ inexistant est refusé avec un `422` au location de provoquer une erreur interne ;
 - un paramètre **sans valeur par défaut** est **obligatoire**.
 
 **Paramètres d'en-tête :**
 
 ```python
+
 from fastapi import Header
 
 @router.post("")
 def creer(idempotency_key: Annotated[str | None, Header()] = None): ...
 ```
 
-FastAPI convertit `idempotency_key` en `Idempotency-Key` (les underscores deviennent des tirets).
+FastAPI convertit `idempotency_key` en `Idempotency-Key` (les underscores deviennent des tirets) **cf chapitre 1**.
 
 **Corps de requête.** Un paramètre dont le type est un modèle Pydantic est lu dans le corps JSON, validé, puis converti :
 
 ```python
 @router.post("", status_code=201)
-def creer_formation(donnees: FormationCreate) -> FormationSchema:
+def creer_formation(data: FormationCreate) -> FormationResponse:
     ...
 ```
 
@@ -544,23 +543,30 @@ import uuid
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel as BaseSchema, ConfigDict, Field
 
 
 class Level(str, Enum):
-    initiation = "initiation"
-    intermediaire = "intermediaire"
-    avance = "avance"
+    beginner = "initiation"
+    medium = "intermédiaire"
+    advanced = "avancé"
 
 
-class FormationSchema(BaseModel):
+class FormationSchema(BaseSchema):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     code: str = Field(pattern=r"^[A-Z]{3}\d{6}-[A-Z]$", examples=["PYT100614-F"])
-    titre: str = Field(min_length=3, max_length=120)
+    title: str = Field(min_length=3, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
     duration: int = Field(ge=1, le=10)
     level: Level
+
+# pour les réponses incluant l'identifiant et les dates de création et de mise à jour
+class FormationResponse(FormationSchema):
+    id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
 ```
 
 | Élément | Rôle |
@@ -579,13 +585,13 @@ class FormationSchema(BaseModel):
 |---|---|---|
 | `FormationCreate` | corps du `POST` | tous les champs obligatoires, aucun `id` |
 | `FormationUpdate` | corps du `PATCH` | tous les champs facultatifs, `code` interdit (`extra="forbid"`) |
-| `FormationSchema` | réponse | ajoute `id`, `cree_le`, `modifie_le` |
+| `FormationSchema` | réponse | ajoute `id`, `created_at`, `updated_at` |
 
 **Modification partielle avec `exclude_unset`.** Pour un `PATCH`, il faut distinguer « champ absent » (ne pas toucher) de « champ envoyé avec `null` » (effacer la valeur). Pydantic mémorise les champs réellement reçus :
 
 ```python
-changements = donnees.model_dump(exclude_unset=True)
-# {"titre": "Nouveau titre"}           si seul le titre a été envoyé
+updates = data.model_dump(exclude_unset=True)
+# {"title": "Nouveau titre"}           si seul le titre a été envoyé
 # {"description": None}                si description a été envoyée avec null
 ```
 
@@ -595,40 +601,62 @@ changements = donnees.model_dump(exclude_unset=True)
 
 ```python
 from datetime import date
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 
-class InterventionCreate(BaseModel):
-    date_debut: date
+class FormationEditValidatorsMixin(BaseSchema):
+    """
+    Mixin contenant les validateurs pour les champs des formations.
+    
+    à attacher aux schémas de création et de mise à jour des formations.
 
-    @field_validator("date_debut")
+    ATTENTION pour un validateur de champs: ajouter check_fields=False 
+    si le champ n'est pas encore présent dans l'instance du schéma ici BaseSchema.
+    """
+    @field_validator("duration", check_fields=False)
     @classmethod
-    def dans_le_futur(cls, valeur: date) -> date:
-        if valeur <= date.today():
-            raise ValueError("la date de début doit être postérieure à aujourd'hui")
-        return valeur
+    def odd_duration(cls, value: int):
+        """
+        un validateur de champs est évalué avec son schéma
+        
+        peut transformer la valeur du champs en paramètre et la retourner: formatter
+
+        peut bloquer la validation pour des considérations avancées, métier
+
+        mode par défaut: "before" (avant la création de l'instance) donc méthode de classe avec @classmethod
+        """
+        if not value % 2:
+            raise ValueError(f"{value} doit être impair !!")
+        return value
+
+    @model_validator(mode="after")
+    def level_matching_duration(self):
+        """
+        un validateur sur plusieurs champs, qui nécessite l'instance du schéma
+
+        after: ce validateur est exécuté après la création de l'instance du schéma
+        """
+        matches = {
+            "initiation": 3,
+            "intermédiaire": 3,
+            "avancé": 5
+        }
+        if self.duration < matches[self.level]:
+            raise ValueError(f"une formation de niveau {self.level} demande au moins {matches[self.level]} j")
+        return self
 ```
 
-**`response_model` : contrôler ce qui sort.** Le modèle de réponse filtre les champs de l'objet renvoyé et valide sa forme. Un champ interne (`mot_de_passe_hash`, `note_interne`) absent du modèle de réponse **ne peut pas fuiter** dans le JSON, même si l'objet Python le contient. C'est une protection contre l'exposition accidentelle de données.
-
 ```python
-@router.get("/{formation_id}", response_model=FormationSchema)
+@router.get("/{formation_id}", response_model=FormationResponse)
 def lire_formation(formation_id: uuid.UUID): ...
 ```
 
-Avec une annotation de retour (`-> FormationSchema`), FastAPI déduit le même comportement. Les deux écritures sont équivalentes pour les cas simples ; `response_model=` reste utile quand la fonction renvoie un objet plus riche que ce qu'on veut exposer.
+Avec une annotation de retour (`-> FormationResponse`), FastAPI déduit le même comportement. Les deux écritures sont équivalentes pour les cas simples ; `response_model=` reste utile quand la fonction renvoie un objet plus riche que ce qu'on veut exposer.
 
 ### 🛠️ Micro-atelier 7 — Modéliser et voir la validation à l'œuvre (15 min)
 
-1. Créer `app/schemas.py` avec `Level`, `FormationSchema`, `FormationCreate` et `FormationSchema` (sections 4.5 et B5).
+1. Créer `app/schemas/formations.py` avec `Level`, `FormationSchema`, `FormationCreate` et `Formation` (sections 4.5 et B5).
 2. Dans un shell Python, construire `FormationCreate(...)` avec des données valides, puis avec `duration=99` ; lire le message d'erreur Pydantic.
 3. Ajouter à `main.py` une route temporaire :
-
-```python
-@app.post("/v1/essai", response_model=FormationSchema)
-def essai(donnees: FormationCreate) -> FormationSchema:
-    maintenant = datetime.now(timezone.utc)
-    return FormationSchema(id=uuid.uuid4(), cree_le=maintenant, modifie_le=maintenant, **donnees.model_dump())
-```
 
 4. Depuis `/docs`, envoyer un corps valide, puis un corps avec `level` invalide et un champ manquant ; comparer les réponses `200` et `422`.
 
@@ -661,7 +689,7 @@ Chaque erreur indique son **type**, sa **localisation** (`loc` : d'où vient le 
 
 ```json
 {
-  "type": "https://api-catalogue.example/erreurs#validation_failed",
+  "type": "https://api-catalogue.example/errors#validation_failed",
   "title": "Unprocessable Entity",
   "status": 422,
   "code": "validation_failed",
@@ -674,16 +702,21 @@ Chaque erreur indique son **type**, sa **localisation** (`loc` : d'où vient le 
 }
 ```
 
-C'est exactement la forme que `catalogue_client.ApiError` sait lire (`code`, `errors`, `request_id`), ce qui évite de modifier le client.
+C'est exactement la forme que `gorest_client.ApiError` sait lire (`code`, `errors`, `request_id`), ce qui évite de modifier le client.
 
 **Étape 1 — une exception métier.**
 
 ```python
 class ApiError(Exception):
     def __init__(self, status: int, code: str, detail: str,
-                 erreurs: list[dict] | None = None, headers: dict[str, str] | None = None):
-        self.status, self.code, self.detail = status, code, detail
-        self.erreurs, self.headers = erreurs, headers
+                 errors: list[dict] | None = None,
+                 headers: dict[str, str] | None = None) -> None:
+        super().__init__(detail)
+        self.status = status
+        self.code = code
+        self.detail = detail
+        self.errors = errors
+        self.headers = headers
 ```
 
 Le code métier lève `ApiError(404, "not_found", "Formation introuvable.")` sans connaître HTTP : seul le gestionnaire se préoccupe du format de la réponse.
@@ -698,11 +731,11 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 
-def probleme(request: Request, status: int, code: str, detail: str,
-             erreurs: list[dict] | None = None,
+def problem(request: Request, status: int, code: str, detail: str,
+             errors: list[dict] | None = None,
              headers: dict[str, str] | None = None) -> JSONResponse:
     corps = {
-        "type": f"https://api-catalogue.example/erreurs#{code}",
+        "type": f"https://api-catalogue.example/errors#{code}",
         "title": HTTPStatus(status).phrase,
         "status": status,
         "code": code,
@@ -710,8 +743,8 @@ def probleme(request: Request, status: int, code: str, detail: str,
         "instance": request.url.path,
         "request_id": str(uuid.uuid4()),
     }
-    if erreurs:
-        corps["errors"] = erreurs
+    if errors:
+        corps["errors"] = errors
     return JSONResponse(corps, status_code=status, headers=headers,
                         media_type="application/problem+json")
 ```
@@ -731,18 +764,25 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
-def pointeur(loc: tuple) -> str:
-    morceaux = [str(m) for m in loc[1:]]       # on retire « body », « query », « path »
-    return "/" + "/".join(morceaux)
+def pointer(loc: tuple) -> str:
+    return "/" + "/".join(str(chunks) for chunks in loc[1:])   # loc[0] : body, query ou path
 
 
 def installer_gestionnaires(app: FastAPI) -> None:
+    """
+    Un gestionnaire d'exceptions capture et redéfinit les erreurs ciblées déclenchées par l'application.
+
+    ApiError: erreur métier dans un gestionnaire de route (code métier)
+    StarletteHTTPException: sous-jacente à l'exception HTTPException de FastAPI, erreur HTTP standard (404, 403, etc.)
+    RequestValidationError: erreur de validation des paramètres de la requête 422 pydantic
+    Exception: toute autre erreur non gérée
+    """
     @app.exception_handler(RequestValidationError)
-    async def validation(request: Request, exc: RequestValidationError):
-        erreurs = [{"pointer": pointeur(e["loc"]), "code": e["type"], "detail": e["msg"]}
+    async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+        errors = [{"pointer": pointer(e["loc"]), "code": e["type"], "detail": e["msg"]}
                    for e in exc.errors()]
-        return probleme(request, 422, "validation_failed",
-                        "Certains champs ne sont pas valides.", erreurs)
+        return problem(request, 422, "validation_failed",
+                        "Certains champs ne sont pas valides.", errors)
 ```
 
 > [!WARN] Ne pas renvoyer `exc.errors()` tel quel
@@ -760,39 +800,21 @@ Le gestionnaire pour `Exception` joue un rôle de filet de sécurité : il journ
 
 ### 🛠️ Micro-atelier 8 — Un format d'erreur unique (10 min)
 
-1. Créer `app/erreurs.py` avec `ApiError`, `probleme`, `pointeur` et `installer_gestionnaires` (version complète en B5).
+1. Créer `app/errors.py` avec `ApiError`, `probleme`, `pointeur` et `installer_gestionnaires` (version complète en B5).
 2. Appeler `installer_gestionnaires(app)` dans `main.py`.
-3. Vérifier avec `curl.exe -i` : une route inconnue (`/v1/nexiste-pas`), un `POST /v1/essai` avec un `duration` hors plage, une méthode non prévue (`DELETE /v1/sante`).
-4. Pour chacune : relever le statut, l'en-tête `Content-Type` (`application/problem+json`), le champ `code`.
-5. Les afficher avec `catalogue_client` en pointant vers `http://127.0.0.1:8000/v1` : l'exception est-elle correctement typée ? *(Remarque : le client monte ses reprises sur `https://` uniquement ; voir l'atelier.)*
+3. Pour chacune : relever le statut, l'en-tête `Content-Type` (`application/problem+json`), le champ `code`.
+4. Les afficher avec `gorest_client` en pointant vers `http://127.0.0.1:8000/v1` : l'exception est-elle correctement typée ? *(Remarque : le client monte ses reprises sur `https://` uniquement ; voir l'atelier.)*
 
 ### 4.7 Les dépendances : factoriser ce qui précède la route
 
 Une **dépendance** est une fonction que FastAPI exécute **avant** la fonction de route, et dont il injecte le résultat. C'est le mécanisme central pour tout ce qui est transversal : authentification, accès au stockage, paramètres de pagination, configuration.
 
-```python
-from typing import Annotated
-from fastapi import Depends
-
-_stockage = Stockage()
-
-def obtenir_stockage() -> Stockage:
-    return _stockage
-
-Depot = Annotated[Stockage, Depends(obtenir_stockage)]
-
-
-@router.get("/{formation_id}")
-def lire_formation(formation_id: uuid.UUID, depot: Depot) -> FormationSchema:
-    return depot.formation(formation_id)
-```
-
 Ce que cela apporte :
 
 | Bénéfice | Explication |
 |---|---|
-| **Réutilisation** | l'alias `Depot` s'écrit une fois et s'emploie dans chaque route |
-| **Testabilité** | un test remplace la dépendance : `app.dependency_overrides[obtenir_stockage] = lambda: Stockage()` |
+| **Réutilisation** | une dépendance s'écrit une fois et s'emploie dans chaque route |
+| **Testabilité** | un test remplace la dépendance : `app.dependency_overrides[obtenir_stockage] = lambda: dep()` |
 | **Documentation** | une dépendance de sécurité apparaît dans OpenAPI (bouton **Authorize** de Swagger UI) |
 | **Composition** | une dépendance peut en utiliser d'autres (le vérificateur de jeton dépend des paramètres de configuration) |
 
@@ -803,31 +825,33 @@ Une dépendance peut aussi s'appliquer sans que la route n'en utilise le résult
 **Principe** (rappel du jour 1) : le client envoie `Authorization: Basic base64(identifiant:mot_de_passe)`. Le serveur compare, et répond `401` avec `WWW-Authenticate: Basic` en cas d'échec.
 
 ```python
-import secrets
-from typing import Annotated
-
-from fastapi import Depends
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from typing import Annotated
+from fastapi import Depends, HTTPException
+import secrets
 
 schema_basic = HTTPBasic(auto_error=False)
 
 
-def egal(a: str, b: str) -> bool:
-    return secrets.compare_digest(a.encode("utf8"), b.encode("utf8"))
-
-
-def exiger_admin(
-    identifiants: Annotated[HTTPBasicCredentials | None, Depends(schema_basic)],
-    p: Annotated[Settings, Depends(settings)],
-) -> str:
-    # & et non « and » : les deux comparaisons s'exécutent toujours
-    if identifiants is None or not (
-        egal(identifiants.username, p.admin_utilisateur)
-        & egal(identifiants.password, p.admin_mot_de_passe)
+def authenticate(
+        # --------------> schéma pydantic pour certifier que on a username et passowrd dedans
+        # ---------------------------------------------------> classe fastapi qui gère (décodage..) la str base64 encodée du entête Authorization: Basic erjfekrfbre==
+        # -------------------------------------------> injection dépendance contrôlée par FASTAPI (
+        #                                                             place la gestion de dépendance dans le cycle de vie d'une requête
+        #                                                             exécute et valide la dépendance
+        #                                                             fonctionne en synchrone et en asychrone
+        creds: Annotated[HTTPBasicCredentials | None, Depends(schema_basic)]
+):
+    if creds is None or not (
+        secrets.compare_digest(creds.username.encode("utf-8"), b"bob") and 
+        secrets.compare_digest(creds.password.encode("utf-8"), b"roottoor")
     ):
-        raise ApiError(401, "invalid_credentials", "Identifiant ou mot de passe incorrect.",
-                        headers={"WWW-Authenticate": 'Basic realm="admin"'})
-    return identifiants.username
+        raise HTTPException(
+            status_code=401, 
+            detail="invalid_credentials: Identifiant ou mot de passe incorrect.",
+            headers={"WWW-Authenticate": 'Basic realm="generic"'}
+        )
+    return creds.username
 ```
 
 **Trois points de sécurité à retenir.**
@@ -860,31 +884,44 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 schema_bearer = HTTPBearer(auto_error=False, description="Jeton d'API de l'API Catalogue")
 
 
-def exiger(portee: str):
+def authenticate_basic(
+    creds: Annotated[HTTPBasicCredentials | None, Depends(schema_basic)]
+):
+    if creds is None or not (
+        secrets.compare_digest(creds.username.encode("utf-8"), b"bob") and 
+        secrets.compare_digest(creds.password.encode("utf-8"), b"roottoor")
+    ):
+        raise HTTPException(
+            status_code=401, 
+            detail="invalid_credentials: Identifiant ou mot de passe incorrect.",
+            headers={"WWW-Authenticate": 'Basic realm="generic"'}
+        )
+    return creds.username
+
+def authenticate_bearer(acl: str):
     def verifier(
-        identifiants: Annotated[HTTPAuthorizationCredentials | None, Depends(schema_bearer)],
-        p: Annotated[Settings, Depends(settings)],
+        creds: Annotated[HTTPAuthorizationCredentials | None, Depends(schema_bearer)]
     ) -> frozenset[str]:
-        if identifiants is None:
+        if creds is None:
             raise ApiError(401, "missing_token", "Jeton absent.",
                             headers={"WWW-Authenticate": "Bearer"})
-        portees = next((s for jeton, s in p.jetons.items()
-                        if egal(identifiants.credentials, jeton)), None)
-        if portees is None:
+        acls = next((s for jeton, s in jetons.items()
+                        if egal(creds.credentials, jeton)), None)
+        if acls is None:
             raise ApiError(401, "invalid_token", "Jeton invalide.",
                             headers={"WWW-Authenticate": 'Bearer error="invalid_token"'})
-        if portee not in portees:
-            raise ApiError(403, "insufficient_scope", f"La portée {portee} est requise.",
+        if acl not in acls:
+            raise ApiError(403, "insufficient_scope", f"Le droit {acl} est requis.",
                             headers={"WWW-Authenticate": 'Bearer error="insufficient_scope"'})
-        return portees
+        return acls
     return verifier
 ```
 
 L'utilisation sur une route est une seule ligne :
 
 ```python
-@router.post("", status_code=201, dependencies=[Depends(exiger("catalogue:write"))])
-def creer_formation(donnees: FormationCreate, ...): ...
+@router.post("", status_code=201, dependencies=[Depends(authenticate_bearer("catalogue:write"))])
+def creer_formation(data: FormationCreate, ...): ...
 ```
 
 **Pourquoi `auto_error=False` ici aussi ?** Le comportement par défaut de `HTTPBearer` face à un en-tête absent a varié selon les versions de FastAPI (`403` à une époque, `401` ensuite). En reprenant la main, on garantit un contrat stable : absent ou invalide donne `401`, valide mais sans droit donne `403`, ce que la RFC 6750 exprime avec `WWW-Authenticate: Bearer error="insufficient_scope"`.
@@ -917,7 +954,7 @@ CATALOGUE_ADMIN_USER=admin
 CATALOGUE_ADMIN_PASSWORD=<mot de passe généré>
 ```
 
-2. Ajouter une route `GET /v1/admin/statistiques` protégée par `exiger_admin` et une route `POST /v1/essai` protégée par `exiger("catalogue:write")`.
+2. Ajouter une route `GET /v1/admin/statistiques` protégée par `authenticate_basic` et une route `POST /v1/catalogue` protégée par `authenticate_bearer("catalogue:write")`.
 3. Appeler chaque route : sans identifiants, avec un mauvais jeton, avec le jeton de lecture, avec le jeton d'écriture.
 4. Remplir un tableau « appel → statut → `WWW-Authenticate` » et le comparer au tableau ci-dessous.
 
@@ -975,8 +1012,8 @@ from app.main import app
 
 client = TestClient(app)
 
-def test_sante():
-    r = client.get("/v1/sante")
+def test_health():
+    r = client.get("/v1/health")
     assert r.status_code == 200
     assert r.json() == {"statut": "ok"}
 ```
@@ -1000,7 +1037,7 @@ def client():
 ```
 
 > [!TIP] Deux levelx de test complémentaires
-> Les tests `pytest` avec `TestClient` sont rapides et s'exécutent en intégration continue. Le `catalogue_client` du jour 1 exécute un **vrai** appel HTTP contre un serveur lancé : il vérifie ce que `TestClient` ne voit pas (en-têtes réellement envoyés, reprises, encodage des crochets dans l'URL).
+> Les tests `pytest` avec `TestClient` sont rapides et s'exécutent en intégration continue. Le `gorest_client` du jour 1 exécute un **vrai** appel HTTP contre un serveur lancé : il vérifie ce que `TestClient` ne voit pas (en-têtes réellement envoyés, reprises, encodage des crochets dans l'URL).
 
 ---
 
@@ -1017,7 +1054,7 @@ def client():
 | 3 | Routes des formations (liste paginée, lecture, création, modification, suppression) | 25 min |
 | 4 | Erreurs Problem Details et routes des interventions | 10 min |
 | 5 | Sécurité : Bearer sur les écritures, BASIC sur l'administration | 10 min |
-| 6 | Tests `pytest`, puis scénario avec `catalogue_client` | 20 min |
+| 6 | Tests `pytest`, puis scénario avec `gorest_client` | 20 min |
 
 **Arborescence cible** (ajoutée au dépôt du jour 1) :
 
@@ -1026,17 +1063,19 @@ api-catalogue/
 ├── .env                          # + variables CATALOGUE_* (jour 2)
 ├── pyproject.toml
 ├── requirements.txt
-├── catalogue_client/             # jour 1 (une ligne modifiée à l'étape 6)
+├── gorest_client/             # jour 1 (une ligne modifiée à l'étape 6)
 ├── app/
 │   ├── __init__.py
 │   ├── main.py
-│   ├── schemas.py
-│   ├── erreurs.py
+│   ├── schemas/
+│   |   ├── __init__.py
+│   |   └── formations.py
+│   ├── errors.py
 │   ├── pagination.py
 │   ├── stockage.py
 │   ├── dependances.py
-│   ├── securite.py
-│   └── routes/
+│   ├── auth.py
+│   └── routers/
 │       ├── __init__.py
 │       ├── formations.py
 │       ├── interventions.py
@@ -1072,7 +1111,7 @@ def obtenir_stockage() -> Stockage:
 Depot = Annotated[Stockage, Depends(obtenir_stockage)]
 ```
 
-**Corrigé — `app/erreurs.py`**
+**Corrigé — `app/errors.py`**
 
 ```python
 """Erreurs de l'API au format Problem Details (RFC 9457)."""
@@ -1090,21 +1129,21 @@ journal = logging.getLogger("api_catalogue")
 
 class ApiError(Exception):
     def __init__(self, status: int, code: str, detail: str,
-                 erreurs: list[dict] | None = None,
+                 errors: list[dict] | None = None,
                  headers: dict[str, str] | None = None) -> None:
         super().__init__(detail)
         self.status = status
         self.code = code
         self.detail = detail
-        self.erreurs = erreurs
+        self.errors = errors
         self.headers = headers
 
 
 def probleme(request: Request, status: int, code: str, detail: str,
-             erreurs: list[dict] | None = None,
+             errors: list[dict] | None = None,
              headers: dict[str, str] | None = None) -> JSONResponse:
     corps = {
-        "type": f"https://api-catalogue.example/erreurs#{code}",
+        "type": f"https://api-catalogue.example/errors#{code}",
         "title": HTTPStatus(status).phrase,
         "status": status,
         "code": code,
@@ -1112,8 +1151,8 @@ def probleme(request: Request, status: int, code: str, detail: str,
         "instance": request.url.path,
         "request_id": str(uuid.uuid4()),
     }
-    if erreurs:
-        corps["errors"] = erreurs
+    if errors:
+        corps["errors"] = errors
     return JSONResponse(corps, status_code=status, headers=headers,
                         media_type="application/problem+json")
 
@@ -1125,7 +1164,7 @@ def pointeur(loc: tuple) -> str:
 def installer_gestionnaires(app: FastAPI) -> None:
     @app.exception_handler(ApiError)
     async def erreur_api(request: Request, exc: ApiError) -> JSONResponse:
-        return probleme(request, exc.status, exc.code, exc.detail, exc.erreurs, exc.headers)
+        return probleme(request, exc.status, exc.code, exc.detail, exc.errors, exc.headers)
 
     @app.exception_handler(StarletteHTTPException)
     async def erreur_http(request: Request, exc: StarletteHTTPException) -> JSONResponse:
@@ -1134,10 +1173,10 @@ def installer_gestionnaires(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def erreur_validation(request: Request, exc: RequestValidationError) -> JSONResponse:
-        erreurs = [{"pointer": pointeur(e["loc"]), "code": e["type"], "detail": e["msg"]}
+        errors = [{"pointer": pointeur(e["loc"]), "code": e["type"], "detail": e["msg"]}
                    for e in exc.errors()]
         return probleme(request, 422, "validation_failed",
-                        "Certains champs ne sont pas valides.", erreurs)
+                        "Certains champs ne sont pas valides.", errors)
 
     @app.exception_handler(Exception)
     async def erreur_inattendue(request: Request, exc: Exception) -> JSONResponse:
@@ -1151,7 +1190,7 @@ def installer_gestionnaires(app: FastAPI) -> None:
 from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI
 
-from .erreurs import installer_gestionnaires
+from .errors import installer_gestionnaires
 from .routers import admin, formations, interventions
 
 load_dotenv()
@@ -1170,25 +1209,25 @@ app = FastAPI(
 )
 installer_gestionnaires(app)
 
-v1 = APIRouter(prefix="/v1")
-v1.include_router(formations.router)
-v1.include_router(interventions.router)
-v1.include_router(admin.router)
+version = APIRouter(prefix="/v1")
+version.include_router(formations.router)
+version.include_router(interventions.router)
+version.include_router(admin.router)
 
 
-@v1.get("/sante", tags=["technique"], summary="État du service")
-def sante() -> dict[str, str]:
+@version.get("/health", tags=["technique"], summary="État du service")
+def health() -> dict[str, str]:
     return {"statut": "ok"}
 
 
-app.include_router(v1)
+app.include_router(version)
 ```
 
 **Point de contrôle** : `fastapi dev` démarre sans erreur, une fois toutes les étapes terminées ; d'ici là, commenter temporairement les importations des modules pas encore écrits.
 
 #### Étape 2 — Modèles et stockage (15 min)
 
-**Corrigé — `app/schemas.py`**
+**Corrigé — `app/schemas/formations.py`**
 
 ```python
 import uuid
@@ -1199,22 +1238,22 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 class Level(str, Enum):
-    initiation = "initiation"
-    intermediaire = "intermediaire"
-    avance = "avance"
+    beginner = "initiation"
+    medium = "intermédiaire"
+    advanced = "avancé"
 
 
 class StatutIntervention(str, Enum):
-    planifiee = "planifiee"
-    confirmee = "confirmee"
-    annulee = "annulee"
+    planned = "planifiée"
+    confirmed = "confirmée"
+    cancelled = "annulée"
 
 
 class FormationSchema(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     code: str = Field(pattern=r"^[A-Z]{3}\d{6}-[A-Z]$", examples=["PYT100614-F"])
-    titre: str = Field(min_length=3, max_length=120)
+    title: str = Field(min_length=3, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
     duration: int = Field(ge=1, le=10)
     level: Level
@@ -1227,46 +1266,18 @@ class FormationCreate(FormationSchema):
 class FormationUpdate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
-    titre: str | None = Field(default=None, min_length=3, max_length=120)
+    title: str | None = Field(default=None, min_length=3, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
     duration: int | None = Field(default=None, ge=1, le=10)
     level: Level | None = None
 
-    @model_validator(mode="after")
-    def refuser_null_sur_champs_obligatoires(self) -> "FormationUpdate":
-        for champ in ("titre", "duration", "level"):
-            if champ in self.model_fields_set and getattr(self, champ) is None:
-                raise ValueError(f"{champ} ne peut pas être null")
-        return self
 
-
-class Formation(FormationSchema):
+class FormationResponse(FormationSchema):
     id: uuid.UUID
-    cree_le: datetime
-    modifie_le: datetime
+    created_at: datetime
+    updated_at: datetime
 
-
-class InterventionCreate(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
-
-    date_debut: date
-    lieu: str = Field(min_length=2, max_length=80)
-    places: int = Field(ge=1, le=30)
-    statut: StatutIntervention = StatutIntervention.planifiee
-
-    @field_validator("date_debut")
-    @classmethod
-    def dans_le_futur(cls, valeur: date) -> date:
-        if valeur <= date.today():
-            raise ValueError("la date de début doit être postérieure à aujourd'hui")
-        return valeur
-
-
-class InterventionFormation(InterventionCreate):
-    id: uuid.UUID
-    formation_id: uuid.UUID
-
-
+### pagination avec cursor
 class Meta(BaseModel):
     has_more: bool
     next_cursor: str | None = None
@@ -1296,7 +1307,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from .erreurs import ApiError
+from .errors import ApiError
 from .schemas import (FormationSchema, FormationCreate, Level, InterventionCreate,
                       InterventionFormation)
 
@@ -1309,38 +1320,34 @@ class Stockage:
         self.interventions: dict[uuid.UUID, InterventionFormation] = {}
 
     # --- formations ------------------------------------------------------
-    def lister_formations(self, level: Level | None, recherche: str | None,
+    def lister_formations(self, level: Level | None,
                           sort: str) -> list[FormationSchema]:
         elements = list(self.formations.values())
         if level:
             elements = [f for f in elements if f.level == level]
-        if recherche:
-            terme = recherche.casefold()
-            elements = [f for f in elements
-                        if terme in f.titre.casefold() or terme in f.code.casefold()]
         return sorted(elements, key=lambda f: getattr(f, sort.lstrip("-")),
-                      reverse=tri.startswith("-"))
+                      reverse=sort.startswith("-"))
 
-    def formation(self, formation_id: uuid.UUID) -> FormationSchema:
+    def formation(self, formation_id: uuid.UUID) -> FormationResponse:
         try:
             return self.formations[formation_id]
         except KeyError:
             raise ApiError(404, "not_found", "Formation introuvable.") from None
 
-    def creer_formation(self, donnees: FormationCreate) -> FormationSchema:
-        if any(f.code == donnees.code for f in self.formations.values()):
-            raise ApiError(409, "code_deja_utilise", f"Le code {donnees.code} existe déjà.")
+    def creer_formation(self, data: FormationCreate) -> FormationResponse:
+        if any(f.code == data.code for f in self.formations.values()):
+            raise ApiError(409, "code_deja_utilise", f"Le code {data.code} existe déjà.")
         maintenant = datetime.now(timezone.utc)
-        formation = FormationSchema(id=uuid.uuid4(), cree_le=maintenant, modifie_le=maintenant,
-                              **donnees.model_dump())
+        formation = FormationSchema(id=uuid.uuid4(), created_at=maintenant, updated_at=maintenant,
+                              **data.model_dump())
         self.formations[formation.id] = formation
         return formation
 
     def modifier_formation(self, formation_id: uuid.UUID,
-                           changements: dict[str, Any]) -> FormationSchema:
+                           updates: dict[str, Any]) -> FormationResponse:
         actuelle = self.formation(formation_id)
         modifiee = actuelle.model_copy(
-            update={**changements, "modifie_le": datetime.now(timezone.utc)})
+            update={**updates, "updated_at": datetime.now(timezone.utc)})
         self.formations[formation_id] = modifiee
         return modifiee
 
@@ -1354,13 +1361,13 @@ class Stockage:
     def interventions_de(self, formation_id: uuid.UUID) -> list[InterventionFormation]:
         self.formation(formation_id)
         return sorted((s for s in self.interventions.values() if s.formation_id == formation_id),
-                      key=lambda s: s.date_debut)
+                      key=lambda s: s.start_date)
 
     def creer_intervention(self, formation_id: uuid.UUID,
-                      donnees: InterventionCreate) -> InterventionFormation:
+                      data: InterventionCreate) -> InterventionFormation:
         self.formation(formation_id)
         intervention = InterventionFormation(id=uuid.uuid4(), formation_id=formation_id,
-                                   **donnees.model_dump())
+                                   **data.model_dump())
         self.interventions[intervention.id] = intervention
         return intervention
 ```
@@ -1371,7 +1378,7 @@ class Stockage:
 import base64
 from typing import Any
 
-from .erreurs import ApiError
+from .errors import ApiError
 
 
 def encoder_curseur(decalage: int) -> str:
@@ -1388,10 +1395,10 @@ def decoder_curseur(curseur: str) -> int:
     return decalage
 
 
-def paginer(elements: list[Any], taille: int, apres: str | None,
+def paginer(elements: list[Any], size: int, after: str | None,
             compter: bool) -> dict[str, Any]:
-    debut = decoder_curseur(apres) if apres else 0
-    fin = debut + taille
+    debut = decoder_curseur(after) if after else 0
+    fin = debut + size
     suite = fin < len(elements)
     return {
         "data": elements[debut:fin],
@@ -1403,85 +1410,11 @@ def paginer(elements: list[Any], taille: int, apres: str | None,
     }
 ```
 
-**Point de contrôle**
-
-- [ ] `FormationCreate(code="PYT100614-F", titre="…", duration=3, level="avance")` s'instancie dans un shell Python, et `duration=99` lève une `ValidationError` ;
-- [ ] le stagiaire explique pourquoi `FormationUpdate` interdit `code` et pourquoi `null` est refusé sur `titre` ;
-- [ ] il sait dire ce que fait `model_fields_set`.
-
-#### Étape 3 — Routes des formations (25 min)
-
-**Corrigé — `app/routers/formations.py`**
-
-```python
-import uuid
-from typing import Annotated, Literal
-
-from fastapi import APIRouter, Query, Request, Response, status
-
-from ..dependances import Depot
-from ..pagination import paginer
-from ..schemas import (FormationSchema, FormationCreate, FormationUpdate, Level,
-                       PageFormations)
-from ..securite import ECRITURE
-
-router = APIRouter(prefix="/formations", tags=["formations"])
-
-
-@router.get("", response_model=PageFormations, summary="Lister les formations")
-def lister_formations(
-    depot: Depot,
-    level: Annotated[Level | None, Query(alias="filter[level]")] = None,
-    recherche: Annotated[str | None, Query(alias="search", min_length=2, max_length=50)] = None,
-    sort: Annotated[Literal["code", "-code", "titre", "-titre", "duration", "-duration"],
-                   Query(alias="sort")] = "code",
-    taille: Annotated[int, Query(alias="page[size]", ge=1, le=100)] = 25,
-    apres: Annotated[str | None, Query(alias="page[after]")] = None,
-    compter: Annotated[bool, Query(alias="page[count]")] = False,
-):
-    """Liste filtrée, triée et paginée par curseur."""
-    return paginer(depot.lister_formations(level, recherche, sort), taille, apres, compter)
-
-
-@router.get("/{formation_id}", response_model=FormationSchema, summary="Lire une formation",
-            responses={404: {"description": "Formation inconnue"}})
-def lire_formation(formation_id: uuid.UUID, depot: Depot) -> FormationSchema:
-    return depot.formation(formation_id)
-
-
-@router.post("", response_model=FormationSchema, status_code=status.HTTP_201_CREATED,
-             dependencies=ECRITURE, summary="Créer une formation",
-             responses={409: {"description": "Code déjà utilisé"}})
-def creer_formation(donnees: FormationCreate, depot: Depot,
-                    request: Request, reponse: Response) -> FormationSchema:
-    formation = depot.creer_formation(donnees)
-    reponse.headers["Location"] = str(request.url_for("lire_formation",
-                                                      formation_id=formation.id))
-    return formation
-
-
-@router.patch("/{formation_id}", response_model=FormationSchema, dependencies=ECRITURE,
-              summary="Modifier partiellement une formation")
-def modifier_formation(formation_id: uuid.UUID, changements: FormationUpdate,
-                       depot: Depot) -> FormationSchema:
-    return depot.modifier_formation(formation_id, changements.model_dump(exclude_unset=True))
-
-
-@router.delete("/{formation_id}", status_code=status.HTTP_204_NO_CONTENT,
-               response_class=Response, dependencies=ECRITURE,
-               summary="Supprimer une formation")
-def supprimer_formation(formation_id: uuid.UUID, depot: Depot) -> None:
-    depot.supprimer_formation(formation_id)
-```
-
-> [!NOTE] Pourquoi `request.url_for` ?
-> L'URL de `Location` est calculée à partir du **nom de la route** (`lire_formation`). Si le préfixe `/v1` change ou si l'API passe derrière un proxy qui modifie le chemin, l'en-tête reste cohérent avec les routes réelles, sans chaîne à maintenir à la main.
-
 La sécurité manque encore : `ECRITURE` est défini à l'étape 5. Pour avancer, ajouter provisoirement `ECRITURE = []` en tête de module, puis le remplacer par l'import.
 
 **Point de contrôle** (avec `/docs`, sans authentification pour l'instant)
 
-- [ ] `POST` avec le corps `{"code": "PYT100614-F", "titre": "Python Avancé : Web Services", "duration": 3, "level": "avance"}` renvoie `201` et un en-tête `Location` ;
+- [ ] `POST` avec le corps `{"code": "PYT100614-F", "title": "Python Avancé : Web Services", "duration": 3, "level": "avance"}` renvoie `201` et un en-tête `Location` ;
 - [ ] `GET /v1/formations?page[size]=1` renvoie une enveloppe `data` + `meta` ;
 - [ ] un `PATCH` avec `{"code": "AUT100000-X"}` renvoie `422` (champ interdit) ;
 - [ ] un `DELETE` répond `204` sans corps, un second `DELETE` répond `404`.
@@ -1499,7 +1432,7 @@ from fastapi import APIRouter, Query, status
 from ..dependances import Depot
 from ..pagination import paginer
 from ..schemas import PageInterventions, InterventionCreate, InterventionFormation
-from ..securite import ECRITURE
+from ..auth import ECRITURE
 
 router = APIRouter(prefix="/formations/{formation_id}/interventions", tags=["interventions"])
 
@@ -1509,19 +1442,19 @@ router = APIRouter(prefix="/formations/{formation_id}/interventions", tags=["int
 def lister_interventions(
     formation_id: uuid.UUID,
     depot: Depot,
-    taille: Annotated[int, Query(alias="page[size]", ge=1, le=100)] = 25,
-    apres: Annotated[str | None, Query(alias="page[after]")] = None,
+    size: Annotated[int, Query(alias="page[size]", ge=1, le=100)] = 25,
+    after: Annotated[str | None, Query(alias="page[after]")] = None,
     compter: Annotated[bool, Query(alias="page[count]")] = False,
 ):
-    return paginer(depot.interventions_de(formation_id), taille, apres, compter)
+    return paginer(depot.interventions_de(formation_id), size, after, compter)
 
 
 @router.post("", response_model=InterventionFormation, status_code=status.HTTP_201_CREATED,
              dependencies=ECRITURE, summary="Planifier une intervention",
              responses={404: {"description": "Formation inconnue"}})
-def creer_intervention(formation_id: uuid.UUID, donnees: InterventionCreate,
+def creer_intervention(formation_id: uuid.UUID, data: InterventionCreate,
                   depot: Depot) -> InterventionFormation:
-    return depot.creer_intervention(formation_id, donnees)
+    return depot.creer_intervention(formation_id, data)
 ```
 
 La version 1 ne propose pas de lecture d'une intervention isolée : la réponse du `POST` contient la intervention complète, et il n'y a donc pas d'en-tête `Location`. Ce choix est un engagement de contrat : ajouter la route plus tard est compatible, la retirer ne le serait pas.
@@ -1529,92 +1462,66 @@ La version 1 ne propose pas de lecture d'une intervention isolée : la réponse 
 **Point de contrôle**
 
 - [ ] créer une intervention pour une formation inexistante renvoie `404` au format Problem Details (`code: not_found`) ;
-- [ ] une date de début passée renvoie `422` avec `errors[0].pointer == "/date_debut"` ;
-- [ ] `GET /v1/route-inconnue` et `DELETE /v1/sante` renvoient chacun un document `application/problem+json` (`404` et `405`).
+- [ ] une date de début passée renvoie `422` avec `errors[0].pointer == "/start_date"` ;
+- [ ] `GET /v1/route-inconnue` et `DELETE /v1/health` renvoient chacun un document `application/problem+json` (`404` et `405`).
 
 #### Étape 5 — Sécurité (10 min)
 
-**Corrigé — `app/securite.py`**
+**Corrigé — `app/auth.py`**
 
 ```python
-import os
 import secrets
 from collections.abc import Callable
-from dataclasses import dataclass, field
-from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends
 from fastapi.security import (HTTPAuthorizationCredentials, HTTPBasic,
                               HTTPBasicCredentials, HTTPBearer)
 
-from .erreurs import ApiError
+from .errors import ApiError
 
 schema_bearer = HTTPBearer(auto_error=False, description="Jeton d'API de l'API Catalogue")
 schema_basic = HTTPBasic(auto_error=False)
 
 
-@dataclass(frozen=True)
-class Settings:
-    jetons: dict[str, frozenset[str]] = field(repr=False)
-    admin_utilisateur: str
-    admin_mot_de_passe: str = field(repr=False)
-
-
-@lru_cache
-def settings() -> Settings:
-    try:
-        return Settings(
-            jetons={
-                os.environ["CATALOGUE_TOKEN_ECRITURE"]: frozenset({"catalogue:write"}),
-                os.environ["CATALOGUE_TOKEN_LECTURE"]: frozenset({"catalogue:read"}),
-            },
-            admin_utilisateur=os.environ["CATALOGUE_ADMIN_USER"],
-            admin_mot_de_passe=os.environ["CATALOGUE_ADMIN_PASSWORD"],
-        )
-    except KeyError as exc:
-        raise RuntimeError(f"variable d'environnement manquante : {exc.args[0]}") from exc
-
-
-def egal(a: str, b: str) -> bool:
-    return secrets.compare_digest(a.encode("utf8"), b.encode("utf8"))
-
-
-def exiger_admin(
-    identifiants: Annotated[HTTPBasicCredentials | None, Depends(schema_basic)],
-    p: Annotated[Settings, Depends(settings)],
-) -> str:
-    # & et non « and » : les deux comparaisons s'exécutent toujours
-    if identifiants is None or not (
-        egal(identifiants.username, p.admin_utilisateur)
-        & egal(identifiants.password, p.admin_mot_de_passe)
+def authenticate_basic(
+    creds: Annotated[HTTPBasicCredentials | None, Depends(schema_basic)]
+):
+    if creds is None or not (
+        secrets.compare_digest(creds.username.encode("utf-8"), b"bob") and 
+        secrets.compare_digest(creds.password.encode("utf-8"), b"roottoor")
     ):
-        raise ApiError(401, "invalid_credentials", "Identifiant ou mot de passe incorrect.",
-                        headers={"WWW-Authenticate": 'Basic realm="admin"'})
-    return identifiants.username
+        raise HTTPException(
+            status_code=401, 
+            detail="invalid_credentials: Identifiant ou mot de passe incorrect.",
+            headers={"WWW-Authenticate": 'Basic realm="generic"'}
+        )
+    return creds.username
 
 
-def exiger(portee: str) -> Callable[..., frozenset[str]]:
+def authenticate_bearer(acl: str) -> Callable[..., frozenset[str]]:
+    """
+    fermeture en python (fonction imbriquée) pour paramétrer le droit requis à vérifier dans le jeton d'authentification
+    """
     def verifier(
-        identifiants: Annotated[HTTPAuthorizationCredentials | None, Depends(schema_bearer)],
-        p: Annotated[Settings, Depends(settings)],
+        creds: Annotated[HTTPAuthorizationCredentials | None, Depends(schema_bearer)]
     ) -> frozenset[str]:
-        if identifiants is None:
+        if creds is None:
             raise ApiError(401, "missing_token", "Jeton absent.",
                             headers={"WWW-Authenticate": "Bearer"})
-        portees = next((s for jeton, s in p.jetons.items()
-                        if egal(identifiants.credentials, jeton)), None)
-        if portees is None:
+        acl = next((s for jeton, s in jetons.items()
+                        if secrets.compare_digest(creds.credentials, jeton)), None)
+        if acls is None:
             raise ApiError(401, "invalid_token", "Jeton invalide.",
                             headers={"WWW-Authenticate": 'Bearer error="invalid_token"'})
-        if portee not in portees:
-            raise ApiError(403, "insufficient_scope", f"La portée {portee} est requise.",
+        if acl not in acls:
+            raise ApiError(403, "insufficient_scope", f"Le droit {acl} est requis.",
                             headers={"WWW-Authenticate": 'Bearer error="insufficient_scope"'})
-        return portees
+        return acls
     return verifier
 
-
-ECRITURE = [Depends(exiger("catalogue:write"))]
+ECRITURE = [Depends(authenticate_bearer("catalogue:write"))]
+LECTURE = [Depends(authenticate_bearer("catalogue:read"))]
 ```
 
 **Corrigé — `app/routers/admin.py`**
@@ -1626,13 +1533,13 @@ from fastapi import APIRouter, Depends
 
 from ..dependances import Depot
 from ..schemas import Statistiques
-from ..securite import exiger_admin
+from ..auth import authenticate_basic
 
 router = APIRouter(prefix="/admin", tags=["administration"])
 
 
 @router.get("/statistiques", response_model=Statistiques, summary="Statistiques du catalogue")
-def statistiques(demandeur: Annotated[str, Depends(exiger_admin)], depot: Depot) -> Statistiques:
+def statistiques(demandeur: Annotated[str, Depends(authenticate_basic)], depot: Depot) -> Statistiques:
     return Statistiques(formations=len(depot.formations), interventions=len(depot.interventions),
                         demandeur=demandeur)
 ```
@@ -1658,12 +1565,12 @@ from fastapi.testclient import TestClient
 
 from app.dependances import obtenir_stockage
 from app.main import app
-from app.securite import settings
+from app.auth import settings
 from app.stockage import Stockage
 
 ECRITURE = {"Authorization": "Bearer jeton-ecriture"}
 LECTURE = {"Authorization": "Bearer jeton-lecture"}
-FORMATION = {"code": "PYT100614-F", "titre": "Python Avancé : Web Services",
+FORMATION = {"code": "PYT100614-F", "title": "Python Avancé : Web Services",
              "duration": 3, "level": "avance"}
 
 
@@ -1733,9 +1640,9 @@ def test_patch_partiel_et_champ_interdit(client):
     r = client.patch(url, json={"duration": 4}, headers=ECRITURE)
     assert r.status_code == 200
     assert r.json()["duration"] == 4
-    assert r.json()["titre"] == FORMATION["titre"]
+    assert r.json()["title"] == FORMATION["title"]
     assert client.patch(url, json={"code": "AUT100000-X"}, headers=ECRITURE).status_code == 422
-    assert client.patch(url, json={"titre": None}, headers=ECRITURE).status_code == 422
+    assert client.patch(url, json={"title": None}, headers=ECRITURE).status_code == 422
 
 
 def test_suppression_puis_404(client):
@@ -1764,9 +1671,9 @@ def test_curseur_invalide(client):
 def test_intervention_dans_le_passe_refusee(client):
     formation = client.post("/v1/formations", json=FORMATION, headers=ECRITURE).json()
     r = client.post(f"/v1/formations/{formation['id']}/interventions", headers=ECRITURE,
-                    json={"date_debut": "2020-01-06", "lieu": "Paris", "places": 8})
+                    json={"start_date": "2020-01-06", "location": "Paris", "places": 8})
     assert r.status_code == 422
-    assert r.json()["errors"][0]["pointer"] == "/date_debut"
+    assert r.json()["errors"][0]["pointer"] == "/start_date"
 
 
 def test_admin_basic(client):
@@ -1781,7 +1688,7 @@ def test_admin_basic(client):
 python -m pytest -q
 ```
 
-**Raccorder le client du jour 1.** `catalogue_client` monte ses reprises uniquement pour `https://`. L'API locale tourne en `http://` : sans modification, les appels fonctionnent mais **sans reprise automatique**. Dans `catalogue_client/gorest.py`, remplacer la ligne de montage de l'adaptateur :
+**Raccorder le client du jour 1.** `gorest_client` monte ses reprises uniquement pour `https://`. L'API locale tourne en `http://` : sans modification, les appels fonctionnent mais **sans reprise automatique**. Dans `gorest_client/gorest.py`, remplacer la ligne de montage de l'adaptateur :
 
 ```python
         adaptateur = HTTPAdapter(max_retries=retry)
@@ -1795,11 +1702,11 @@ python -m pytest -q
 """Rejoue le scénario d'écriture du jour 1 contre l'API Catalogue locale."""
 import os
 
-from catalogue_client import (ApiError, AuthError, Conflit, GoRestClient, Settings,
+from gorest_client import (ApiError, AuthError, Conflit, GoRestClient, Settings,
                               ValidationFailed)
 
 BASE = "http://127.0.0.1:8000/v1"
-DONNEES = {"code": "PYT100614-F", "titre": "Python Avancé : Web Services",
+DONNEES = {"code": "PYT100614-F", "title": "Python Avancé : Web Services",
            "duration": 3, "level": "avance"}
 
 ecriture = GoRestClient(Settings(base_url=BASE, token=os.environ["CATALOGUE_TOKEN_ECRITURE"]))
@@ -1862,7 +1769,7 @@ python verifier_avec_client.py
 
 #### Extensions pour les plus rapides
 
-1. **`ETag` et `If-Match`.** Calculer un `ETag` à partir de `modifie_le`, le renvoyer sur `GET /v1/formations/{id}`, répondre `304` à un `If-None-Match` identique et `412` à un `If-Match` périmé. Le client du jour 1 sait déjà envoyer `If-Match`.
+1. **`ETag` et `If-Match`.** Calculer un `ETag` à partir de `updated_at`, le renvoyer sur `GET /v1/formations/{id}`, répondre `304` à un `If-None-Match` identique et `412` à un `If-Match` périmé. Le client du jour 1 sait déjà envoyer `If-Match`.
 2. **`Idempotency-Key`.** Mémoriser la réponse d'un `POST` pendant 24 heures par clé, et la rejouer à l'identique avec `Idempotent-Replayed: true`.
 3. **Limitation de débit.** Compter les appels par jeton et répondre `429` avec `Retry-After`.
 4. **Annulation d'une intervention.** Ajouter `PATCH /v1/formations/{id}/interventions/{intervention_id}` pour changer le `statut`, et refuser une intervention annulée de plus de 30 places.
@@ -1879,16 +1786,16 @@ api-catalogue/
 ├── .env                          # jour 1 + CATALOGUE_* (non versionné)
 ├── pyproject.toml                # entrypoint FastAPI et pythonpath de pytest
 ├── requirements.txt
-├── catalogue_client/             # client réutilisable (reprises sur http et https)
+├── gorest_client/             # client réutilisable (reprises sur http et https)
 ├── app/
 │   ├── main.py                   # application, routeur /v1, métadonnées OpenAPI
-│   ├── schemas.py                # modèles Pydantic (création, modification, lecture)
-│   ├── erreurs.py                # Problem Details et gestionnaires
+│   ├── schemas/                # modèles Pydantic (création, modification, lecture)
+│   ├── errors.py                # Problem Details et gestionnaires
 │   ├── pagination.py             # curseur opaque
 │   ├── stockage.py               # stockage en mémoire (remplacé le jour 3)
 │   ├── dependances.py            # injection du stockage
-│   ├── securite.py               # BASIC, Bearer et portées
-│   └── routes/                   # formations, interventions, admin
+│   ├── auth.py               # BASIC, Bearer et portées
+│   └── routers/                   # formations, interventions, admin
 ├── tests/test_api.py             # tests pytest avec TestClient
 └── verifier_avec_client.py       # scénario de bout en bout avec le client du jour 1
 ```
@@ -1898,7 +1805,7 @@ api-catalogue/
 | Réflexe | Pourquoi |
 |---|---|
 | Concevoir le contrat avant d'écrire du code | une API publiée se modifie difficilement |
-| Un modèle Pydantic par usage (création, modification, lecture) | pas d'`id` imposé par le client, aucun champ interne exposé |
+| Un modèle Pydantic par usage (création, modification, lecture) | pas d'`id` imposé par le client, aucun champs interne exposé |
 | `PATCH` avec `model_dump(exclude_unset=True)` | distinguer « non envoyé » de « effacé » |
 | Un seul format d'erreur, y compris pour les erreurs du framework | un consommateur n'écrit qu'un seul traitement d'erreur |
 | `def` par défaut, `async def` seulement pour du code réellement asynchrone | un appel bloquant dans `async def` fige tout le serveur |
@@ -1913,7 +1820,7 @@ api-catalogue/
 1. Un `time.sleep` ou un `requests.get` dans une route `async def` bloque toutes les requêtes.
 2. `page[size]` n'est pas un identifiant Python valide : sans `alias=`, le paramètre ne s'appelle pas comme attendu.
 3. Renvoyer `exc.errors()` tel quel peut provoquer un `500` quand la liste contient des objets non sérialisables.
-4. Un seul modèle pour tout permet à un client d'envoyer `id` ou `cree_le`, et rend les champs obligatoires facultatifs à la modification.
+4. Un seul modèle pour tout permet à un client d'envoyer `id` ou `created_at`, et rend les champs obligatoires facultatifs à la modification.
 5. Un `PATCH` qui applique `model_dump()` sans `exclude_unset=True` écrase des champs avec leurs valeurs par défaut.
 6. Comparer un jeton avec `==` laisse fuiter des informations par le temps de réponse.
 7. Le comportement par défaut de `HTTPBearer` face à un en-tête absent a changé selon les versions de FastAPI : garder la main avec `auto_error=False`.
@@ -1950,26 +1857,26 @@ python -m pytest -q                           # tests
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 # --- Appels de contrôle (curl.exe sous Windows) -----------------------------
-curl.exe -i http://127.0.0.1:8000/v1/sante
-curl.exe -g "http://127.0.0.1:8000/v1/formations?page[size]=2&sort=-titre&filter[level]=avance"
+curl.exe -i http://127.0.0.1:8000/v1/health
+curl.exe -g "http://127.0.0.1:8000/v1/formations?page[size]=2&sort=-title&filter[level]=avance"
 # syntaxe cmd.exe (^ et %VARIABLE%) ; en PowerShell : ` et $env:VARIABLE ; en bash : \ et $VARIABLE
 curl.exe -X POST http://127.0.0.1:8000/v1/formations ^
   -H "Authorization: Bearer %CATALOGUE_TOKEN_ECRITURE%" -H "Content-Type: application/json" ^
-  -d "{\"code\":\"PYT100614-F\",\"titre\":\"Python Avancé : Web Services\",\"duration\":3,\"level\":\"avance\"}"
+  -d "{\"code\":\"PYT100614-F\",\"title\":\"Python Avancé : Web Services\",\"duration\":3,\"level\":\"avance\"}"
 curl.exe -u admin:MOT_DE_PASSE http://127.0.0.1:8000/v1/admin/statistiques
 curl.exe -s http://127.0.0.1:8000/openapi.json -o openapi.json
 ```
 
 | Besoin | Code FastAPI |
 |---|---|
-| Route `GET` | `@router.get("/{id}", response_model=FormationSchema)` |
+| Route `GET` | `@router.get("/{id}", response_model=FormationResponse)` |
 | Code de succès | `status_code=status.HTTP_201_CREATED` |
 | Réponse sans corps | `status_code=204, response_class=Response` |
 | Paramètre de requête avec alias | `Annotated[int, Query(alias="page[size]", ge=1, le=100)] = 25` |
 | Paramètre de chemin typé | `formation_id: uuid.UUID` |
-| Corps JSON validé | `donnees: FormationCreate` |
+| Corps JSON validé | `data: FormationCreate` |
 | En-tête de réponse | `reponse: Response` puis `reponse.headers["Location"] = ...` |
-| Dépendance sur une route | `dependencies=[Depends(exiger("catalogue:write"))]` |
+| Dépendance sur une route | `dependencies=[Depends(authenticate_bearer("catalogue:write"))]` |
 | Dépendance injectée | `depot: Annotated[Stockage, Depends(obtenir_stockage)]` |
 | Erreur métier | `raise ApiError(404, "not_found", "Formation introuvable.")` |
 | Test avec remplacement | `app.dependency_overrides[obtenir_stockage] = lambda: depot` |
@@ -1979,7 +1886,7 @@ curl.exe -s http://127.0.0.1:8000/openapi.json -o openapi.json
 | Contrainte de champ | `Field(ge=1, le=10)`, `Field(min_length=3)`, `Field(pattern=...)` |
 | Champ facultatif | `description: str \| None = None` |
 | Énumération | `class Level(str, Enum)` |
-| Validation métier d'un champ | `@field_validator("date_debut")` + `@classmethod` |
+| Validation métier d'un champ | `@field_validator("start_date")` + `@classmethod` |
 | Validation de l'ensemble | `@model_validator(mode="after")` |
 | Interdire les champs inconnus | `ConfigDict(extra="forbid")` |
 | Champs réellement reçus | `model_dump(exclude_unset=True)`, `model_fields_set` |
