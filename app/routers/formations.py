@@ -1,17 +1,18 @@
 # app/routers/formations.py
-from fastapi import APIRouter, Path, Query, HTTPException
+from fastapi import APIRouter, Path, Query, HTTPException, Depends
 from typing import Annotated, Literal, List
 import uuid
 from ..schemas.formations import FormationSchema, FormationCreate, FormationUpdate, Level
+from ..auth import authenticate
 
 # objet router à connecter à l'app !
 router = APIRouter(prefix="/formations", tags=["formations"])
 
 # version entier
 FORMATIONS_INT = [
-    {"code": "PYT100614-F", "titre": "Python Avancé : Web Services", "level": "advanced", "duration": 3, "description": "Formation avancée sur les Web Services en Python"},
+    {"code": "PYT100614-F", "titre": "Python Avancé : Web Services", "level": "advanced", "duration": 5, "description": "Formation avancée sur les Web Services en Python"},
     {"code": "JAV100614-B", "titre": "Java Avancé : Bases", "level": "advanced", "duration": 5, "description": "Formation avancée sur les bases en Java"},
-    {"code": "DOK100614-C", "titre": "Docker initiation : Conteneurs", "level": "beginner", "duration": 2, "description": "Formation d'initiation à Docker et aux conteneurs"},
+    {"code": "DOK100614-C", "titre": "Docker initiation : Conteneurs", "level": "beginner", "duration": 3, "description": "Formation d'initiation à Docker et aux conteneurs"},
 ]
 
 FORMATIONS_SLUG = {
@@ -119,3 +120,10 @@ def mettre_a_jour_formation(formation_id: uuid.UUID, data: FormationUpdate) -> F
     FORMATIONS[uid]["level"] = Level[FORMATIONS[uid]["level"]].value
     FORMATIONS[uid].update(update_data)
     return FORMATIONS[uid]
+
+@router.delete("/{formation_id}", status_code=204)
+def supprimer_formation(formation_id: uuid.UUID, username: Annotated[str, Depends(authenticate)]):
+    uid = str(formation_id)
+    if uid not in FORMATIONS:
+        raise HTTPException(status_code=404, detail=f"Formation {uid} introuvable.")
+    del FORMATIONS[uid]

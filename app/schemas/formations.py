@@ -24,6 +24,7 @@ class FormationSchema(BaseSchema):
     duration: int = Field(ge=1, le=10)
     level: Level
 
+class FormationCreate(FormationSchema):
     @field_validator("duration")
     @classmethod
     def odd_duration(cls, value: int):
@@ -45,15 +46,12 @@ class FormationSchema(BaseSchema):
         """
         matches = {
             "initiation": 1,
-            "intermédiaire": 3,
+            "intermediaire": 3,
             "avancé": 5
         }
-        if self.duration <= matches[self.level]:
+        if self.duration < matches[self.level]:
             raise ValueError(f"une formation de niveau {self.level} demande au moins {matches[self.level]} j")
         return self
-
-class FormationCreate(FormationSchema):
-    ...
 
 class FormationUpdate(BaseSchema):
     # ---------------------------------------------------> interdit les champs supplémentaires non définis dans le schéma
