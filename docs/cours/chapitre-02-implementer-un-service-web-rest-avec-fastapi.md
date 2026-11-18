@@ -679,14 +679,14 @@ C'est exactement la forme que `catalogue_client.ApiError` sait lire (`code`, `er
 **Étape 1 — une exception métier.**
 
 ```python
-class ErreurApi(Exception):
+class ApiError(Exception):
     def __init__(self, status: int, code: str, detail: str,
                  erreurs: list[dict] | None = None, headers: dict[str, str] | None = None):
         self.status, self.code, self.detail = status, code, detail
         self.erreurs, self.headers = erreurs, headers
 ```
 
-Le code métier lève `ErreurApi(404, "not_found", "Formation introuvable.")` sans connaître HTTP : seul le gestionnaire se préoccupe du format de la réponse.
+Le code métier lève `ApiError(404, "not_found", "Formation introuvable.")` sans connaître HTTP : seul le gestionnaire se préoccupe du format de la réponse.
 
 **Étape 2 — construire une réponse Problem Details.**
 
@@ -720,7 +720,7 @@ def probleme(request: Request, status: int, code: str, detail: str,
 
 | Source | Gestionnaire pour… | Statut produit |
 |---|---|---|
-| règle métier | `ErreurApi` | celui de l'exception |
+| règle métier | `ApiError` | celui de l'exception |
 | framework (route inconnue, méthode non autorisée) | `StarletteHTTPException` | `404`, `405`… |
 | validation Pydantic | `RequestValidationError` | `422` |
 | bug imprévu | `Exception` | `500`, sans détail technique |
@@ -760,7 +760,7 @@ Le gestionnaire pour `Exception` joue un rôle de filet de sécurité : il journ
 
 ### 🛠️ Micro-atelier 8 — Un format d'erreur unique (10 min)
 
-1. Créer `app/erreurs.py` avec `ErreurApi`, `probleme`, `pointeur` et `installer_gestionnaires` (version complète en B5).
+1. Créer `app/erreurs.py` avec `ApiError`, `probleme`, `pointeur` et `installer_gestionnaires` (version complète en B5).
 2. Appeler `installer_gestionnaires(app)` dans `main.py`.
 3. Vérifier avec `curl.exe -i` : une route inconnue (`/v1/nexiste-pas`), un `POST /v1/essai` avec un `duration` hors plage, une méthode non prévue (`DELETE /v1/sante`).
 4. Pour chacune : relever le statut, l'en-tête `Content-Type` (`application/problem+json`), le champ `code`.
@@ -818,14 +818,14 @@ def egal(a: str, b: str) -> bool:
 
 def exiger_admin(
     identifiants: Annotated[HTTPBasicCredentials | None, Depends(schema_basic)],
-    p: Annotated[Parametres, Depends(parametres)],
+    p: Annotated[Settings, Depends(settings)],
 ) -> str:
     # & et non « and » : les deux comparaisons s'exécutent toujours
     if identifiants is None or not (
         egal(identifiants.username, p.admin_utilisateur)
         & egal(identifiants.password, p.admin_mot_de_passe)
     ):
-        raise ErreurApi(401, "invalid_credentials", "Identifiant ou mot de passe incorrect.",
+        raise ApiError(401, "invalid_credentials", "Identifiant ou mot de passe incorrect.",
                         headers={"WWW-Authenticate": 'Basic realm="admin"'})
     return identifiants.username
 ```
@@ -863,18 +863,18 @@ schema_bearer = HTTPBearer(auto_error=False, description="Jeton d'API de l'API C
 def exiger(portee: str):
     def verifier(
         identifiants: Annotated[HTTPAuthorizationCredentials | None, Depends(schema_bearer)],
-        p: Annotated[Parametres, Depends(parametres)],
+        p: Annotated[Settings, Depends(settings)],
     ) -> frozenset[str]:
         if identifiants is None:
-            raise ErreurApi(401, "missing_token", "Jeton absent.",
+            raise ApiError(401, "missing_token", "Jeton absent.",
                             headers={"WWW-Authenticate": "Bearer"})
         portees = next((s for jeton, s in p.jetons.items()
                         if egal(identifiants.credentials, jeton)), None)
         if portees is None:
-            raise ErreurApi(401, "invalid_token", "Jeton invalide.",
+            raise ApiError(401, "invalid_token", "Jeton invalide.",
                             headers={"WWW-Authenticate": 'Bearer error="invalid_token"'})
         if portee not in portees:
-            raise ErreurApi(403, "insufficient_scope", f"La portée {portee} est requise.",
+            raise ApiError(403, "insufficient_scope", f"La portée {portee} est requise.",
                             headers={"WWW-Authenticate": 'Bearer error="insufficient_scope"'})
         return portees
     return verifier
@@ -1088,7 +1088,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 journal = logging.getLogger("api_catalogue")
 
 
-class ErreurApi(Exception):
+class ApiError(Exception):
     def __init__(self, status: int, code: str, detail: str,
                  erreurs: list[dict] | None = None,
                  headers: dict[str, str] | None = None) -> None:
@@ -1123,8 +1123,8 @@ def pointeur(loc: tuple) -> str:
 
 
 def installer_gestionnaires(app: FastAPI) -> None:
-    @app.exception_handler(ErreurApi)
-    async def erreur_api(request: Request, exc: ErreurApi) -> JSONResponse:
+    @app.exception_handler(ApiError)
+    async def erreur_api(request: Request, exc: ApiError) -> JSONResponse:
         return probleme(request, exc.status, exc.code, exc.detail, exc.erreurs, exc.headers)
 
     @app.exception_handler(StarletteHTTPException)
@@ -1296,7 +1296,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from .erreurs import ErreurApi
+from .erreurs import ApiError
 from .schemas import (FormationSchema, FormationCreate, Level, InterventionCreate,
                       InterventionFormation)
 
@@ -1325,11 +1325,11 @@ class Stockage:
         try:
             return self.formations[formation_id]
         except KeyError:
-            raise ErreurApi(404, "not_found", "Formation introuvable.") from None
+            raise ApiError(404, "not_found", "Formation introuvable.") from None
 
     def creer_formation(self, donnees: FormationCreate) -> FormationSchema:
         if any(f.code == donnees.code for f in self.formations.values()):
-            raise ErreurApi(409, "code_deja_utilise", f"Le code {donnees.code} existe déjà.")
+            raise ApiError(409, "code_deja_utilise", f"Le code {donnees.code} existe déjà.")
         maintenant = datetime.now(timezone.utc)
         formation = FormationSchema(id=uuid.uuid4(), cree_le=maintenant, modifie_le=maintenant,
                               **donnees.model_dump())
@@ -1371,7 +1371,7 @@ class Stockage:
 import base64
 from typing import Any
 
-from .erreurs import ErreurApi
+from .erreurs import ApiError
 
 
 def encoder_curseur(decalage: int) -> str:
@@ -1382,9 +1382,9 @@ def decoder_curseur(curseur: str) -> int:
     try:
         decalage = int(base64.urlsafe_b64decode(curseur.encode()).decode())
     except ValueError as exc:      # binascii.Error et UnicodeDecodeError héritent de ValueError
-        raise ErreurApi(400, "invalid_cursor", "Curseur de pagination invalide.") from exc
+        raise ApiError(400, "invalid_cursor", "Curseur de pagination invalide.") from exc
     if decalage < 0:
-        raise ErreurApi(400, "invalid_cursor", "Curseur de pagination invalide.")
+        raise ApiError(400, "invalid_cursor", "Curseur de pagination invalide.")
     return decalage
 
 
@@ -1548,23 +1548,23 @@ from fastapi import Depends
 from fastapi.security import (HTTPAuthorizationCredentials, HTTPBasic,
                               HTTPBasicCredentials, HTTPBearer)
 
-from .erreurs import ErreurApi
+from .erreurs import ApiError
 
 schema_bearer = HTTPBearer(auto_error=False, description="Jeton d'API de l'API Catalogue")
 schema_basic = HTTPBasic(auto_error=False)
 
 
 @dataclass(frozen=True)
-class Parametres:
+class Settings:
     jetons: dict[str, frozenset[str]] = field(repr=False)
     admin_utilisateur: str
     admin_mot_de_passe: str = field(repr=False)
 
 
 @lru_cache
-def parametres() -> Parametres:
+def settings() -> Settings:
     try:
-        return Parametres(
+        return Settings(
             jetons={
                 os.environ["CATALOGUE_TOKEN_ECRITURE"]: frozenset({"catalogue:write"}),
                 os.environ["CATALOGUE_TOKEN_LECTURE"]: frozenset({"catalogue:read"}),
@@ -1582,14 +1582,14 @@ def egal(a: str, b: str) -> bool:
 
 def exiger_admin(
     identifiants: Annotated[HTTPBasicCredentials | None, Depends(schema_basic)],
-    p: Annotated[Parametres, Depends(parametres)],
+    p: Annotated[Settings, Depends(settings)],
 ) -> str:
     # & et non « and » : les deux comparaisons s'exécutent toujours
     if identifiants is None or not (
         egal(identifiants.username, p.admin_utilisateur)
         & egal(identifiants.password, p.admin_mot_de_passe)
     ):
-        raise ErreurApi(401, "invalid_credentials", "Identifiant ou mot de passe incorrect.",
+        raise ApiError(401, "invalid_credentials", "Identifiant ou mot de passe incorrect.",
                         headers={"WWW-Authenticate": 'Basic realm="admin"'})
     return identifiants.username
 
@@ -1597,18 +1597,18 @@ def exiger_admin(
 def exiger(portee: str) -> Callable[..., frozenset[str]]:
     def verifier(
         identifiants: Annotated[HTTPAuthorizationCredentials | None, Depends(schema_bearer)],
-        p: Annotated[Parametres, Depends(parametres)],
+        p: Annotated[Settings, Depends(settings)],
     ) -> frozenset[str]:
         if identifiants is None:
-            raise ErreurApi(401, "missing_token", "Jeton absent.",
+            raise ApiError(401, "missing_token", "Jeton absent.",
                             headers={"WWW-Authenticate": "Bearer"})
         portees = next((s for jeton, s in p.jetons.items()
                         if egal(identifiants.credentials, jeton)), None)
         if portees is None:
-            raise ErreurApi(401, "invalid_token", "Jeton invalide.",
+            raise ApiError(401, "invalid_token", "Jeton invalide.",
                             headers={"WWW-Authenticate": 'Bearer error="invalid_token"'})
         if portee not in portees:
-            raise ErreurApi(403, "insufficient_scope", f"La portée {portee} est requise.",
+            raise ApiError(403, "insufficient_scope", f"La portée {portee} est requise.",
                             headers={"WWW-Authenticate": 'Bearer error="insufficient_scope"'})
         return portees
     return verifier
@@ -1646,7 +1646,7 @@ def statistiques(demandeur: Annotated[str, Depends(exiger_admin)], depot: Depot)
 - [ ] `curl.exe -u admin:<mot de passe> http://127.0.0.1:8000/v1/admin/statistiques` renvoie `200`.
 
 > [!WARN] Pièges fréquents à cette étape
-> `RuntimeError: variable d'environnement manquante` : le fichier `.env` est absent du dossier où `fastapi dev` est lancé, ou une variable est mal orthographiée. `ModuleNotFoundError` au démarrage : un fichier `__init__.py` manque, ou la commande est lancée depuis un autre dossier que la racine du dépôt. Les modifications du `.env` ne sont prises en compte qu'après un redémarrage du serveur, car `parametres()` est mis en cache.
+> `RuntimeError: variable d'environnement manquante` : le fichier `.env` est absent du dossier où `fastapi dev` est lancé, ou une variable est mal orthographiée. `ModuleNotFoundError` au démarrage : un fichier `__init__.py` manque, ou la commande est lancée depuis un autre dossier que la racine du dépôt. Les modifications du `.env` ne sont prises en compte qu'après un redémarrage du serveur, car `settings()` est mis en cache.
 
 #### Étape 6 — Tests, puis scénario avec le client du jour 1 (20 min)
 
@@ -1658,7 +1658,7 @@ from fastapi.testclient import TestClient
 
 from app.dependances import obtenir_stockage
 from app.main import app
-from app.securite import parametres
+from app.securite import settings
 from app.stockage import Stockage
 
 ECRITURE = {"Authorization": "Bearer jeton-ecriture"}
@@ -1673,9 +1673,9 @@ def environnement(monkeypatch):
     monkeypatch.setenv("CATALOGUE_TOKEN_LECTURE", "jeton-lecture")
     monkeypatch.setenv("CATALOGUE_ADMIN_USER", "admin")
     monkeypatch.setenv("CATALOGUE_ADMIN_PASSWORD", "mdp-de-test")
-    parametres.cache_clear()
+    settings.cache_clear()
     yield
-    parametres.cache_clear()
+    settings.cache_clear()
 
 
 @pytest.fixture()
@@ -1971,7 +1971,7 @@ curl.exe -s http://127.0.0.1:8000/openapi.json -o openapi.json
 | En-tête de réponse | `reponse: Response` puis `reponse.headers["Location"] = ...` |
 | Dépendance sur une route | `dependencies=[Depends(exiger("catalogue:write"))]` |
 | Dépendance injectée | `depot: Annotated[Stockage, Depends(obtenir_stockage)]` |
-| Erreur métier | `raise ErreurApi(404, "not_found", "Formation introuvable.")` |
+| Erreur métier | `raise ApiError(404, "not_found", "Formation introuvable.")` |
 | Test avec remplacement | `app.dependency_overrides[obtenir_stockage] = lambda: depot` |
 
 | Besoin Pydantic | Code |
