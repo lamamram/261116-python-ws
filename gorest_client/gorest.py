@@ -76,6 +76,7 @@ class GoRestClient:
         # crée une request.Request + prepare + send
         r = self.session.request(method=method, url=url, **options)
 
+        # r.ok ==> [ 200 - 400 [ mais avec allow_redirects : 3xx -> 4xx
         if r.ok:
             if "application/json" in r.headers["content-type"]:
                 return r
