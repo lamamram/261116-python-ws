@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 500" role="img" aria-label="Architecture de déploiement Django et FastAPI">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="880" height="500" fill="#ffffff"/>
+  <text x="440" y="30" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#1f2937">Deux déploiements de base côte à côte</text>
+  <line x1="440" y1="48" x2="440" y2="486" stroke="#e2e8f0" stroke-width="2"/>
+
+  <!-- DJANGO -->
+  <text x="220" y="66" text-anchor="middle" font-family="system-ui, sans-serif" font-size="15" font-weight="700" fill="#4f46e5">Django-Ninja</text>
+  <rect x="70" y="82" width="300" height="40" rx="8" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="220" y="107" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13.5" fill="#1f2937">Client (HTTPS)</text>
+  <line x1="220" y1="122" x2="220" y2="146" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="70" y="148" width="300" height="52" rx="8" fill="#fff7ed" stroke="#c2410c" stroke-width="1.5"/>
+  <text x="220" y="171" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13.5" font-weight="600" fill="#1f2937">Proxy inverse (Nginx)</text>
+  <text x="220" y="189" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11.5" fill="#475569">TLS, X-Forwarded-Proto, limites de taille</text>
+  <line x1="220" y1="200" x2="220" y2="224" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="70" y="226" width="300" height="52" rx="8" fill="#f0fdfa" stroke="#0f766e" stroke-width="1.5"/>
+  <text x="220" y="249" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13.5" font-weight="600" fill="#1f2937">Gunicorn (WSGI), 3 workers</text>
+  <text x="220" y="267" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="11.5" fill="#475569">config.wsgi:application</text>
+  <line x1="220" y1="278" x2="220" y2="302" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="70" y="304" width="300" height="52" rx="8" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="220" y="327" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13.5" font-weight="600" fill="#1f2937">Django + Django-Ninja + WhiteNoise</text>
+  <text x="220" y="345" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11.5" fill="#475569">statiques servis par l'application</text>
+  <line x1="150" y1="356" x2="130" y2="396" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="290" y1="356" x2="310" y2="396" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="50" y="398" width="160" height="50" rx="8" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="130" y="420" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#1f2937">PostgreSQL</text>
+  <text x="130" y="437" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#475569">migrate avant démarrage</text>
+  <rect x="230" y="398" width="160" height="50" rx="8" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="310" y="420" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#1f2937">Redis (cache)</text>
+  <text x="310" y="437" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#475569">partagé entre workers</text>
+
+  <!-- FASTAPI -->
+  <text x="660" y="66" text-anchor="middle" font-family="system-ui, sans-serif" font-size="15" font-weight="700" fill="#0f766e">FastAPI</text>
+  <rect x="510" y="82" width="300" height="40" rx="8" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="660" y="107" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13.5" fill="#1f2937">Client (HTTPS)</text>
+  <line x1="660" y1="122" x2="660" y2="146" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="510" y="148" width="300" height="52" rx="8" fill="#fff7ed" stroke="#c2410c" stroke-width="1.5"/>
+  <text x="660" y="171" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13.5" font-weight="600" fill="#1f2937">Proxy inverse ou passerelle</text>
+  <text x="660" y="189" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11.5" fill="#475569">TLS terminé ici, répartition de charge</text>
+  <line x1="660" y1="200" x2="660" y2="224" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="510" y="226" width="300" height="52" rx="8" fill="#f0fdfa" stroke="#0f766e" stroke-width="1.5"/>
+  <text x="660" y="249" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13.5" font-weight="600" fill="#1f2937">fastapi run (Uvicorn, ASGI)</text>
+  <text x="660" y="267" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="11.5" fill="#475569">--proxy-headers, un processus par conteneur</text>
+  <line x1="660" y1="278" x2="660" y2="302" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="510" y="304" width="300" height="52" rx="8" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="660" y="327" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13.5" font-weight="600" fill="#1f2937">Application FastAPI (app.main:app)</text>
+  <text x="660" y="345" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11.5" fill="#475569">secrets en variables d'environnement</text>
+  <line x1="660" y1="356" x2="660" y2="396" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="540" y="398" width="240" height="50" rx="8" fill="#fef2f2" stroke="#b91c1c" stroke-width="1.5"/>
+  <text x="660" y="420" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#1f2937">Stockage en mémoire : à remplacer</text>
+  <text x="660" y="437" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#b91c1c">incompatible avec plusieurs processus</text>
+</svg>

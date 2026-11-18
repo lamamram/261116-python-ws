@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 440" role="img" aria-label="Architecture du fil rouge sur les trois jours">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#4f46e5"/>
+    </marker>
+    <marker id="arr-gris" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="800" height="440" fill="#ffffff"/>
+  <text x="400" y="30" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#1f2937">Fil rouge : un client, puis deux implémentations de l'API Catalogue</text>
+
+  <!-- client -->
+  <rect x="24" y="170" width="190" height="110" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="119" y="205" text-anchor="middle" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#1f2937">catalogue_client</text>
+  <text x="119" y="226" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12.5" fill="#475569">Session, jeton, reprises,</text>
+  <text x="119" y="244" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12.5" fill="#475569">pagination, erreurs</text>
+  <text x="119" y="264" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#4f46e5">écrit au jour 1</text>
+
+  <!-- gorest -->
+  <rect x="330" y="62" width="210" height="84" rx="10" fill="#fff7ed" stroke="#c2410c" stroke-width="1.5"/>
+  <text x="435" y="94" text-anchor="middle" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#1f2937">GoRest v3</text>
+  <text x="435" y="114" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12.5" fill="#475569">service tiers (users, posts,</text>
+  <text x="435" y="130" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12.5" fill="#475569">comments, tasks)</text>
+  <text x="552" y="108" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#c2410c">jour 1</text>
+
+  <!-- api catalogue -->
+  <rect x="330" y="260" width="210" height="118" rx="10" fill="#f0fdfa" stroke="#0f766e" stroke-width="1.5"/>
+  <text x="435" y="290" text-anchor="middle" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#1f2937">API Catalogue</text>
+  <text x="435" y="312" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12.5" fill="#475569">jour 2 : FastAPI</text>
+  <text x="435" y="330" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12.5" fill="#475569">jour 3 : Django-Ninja</text>
+  <text x="435" y="354" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#0f766e">même contrat OpenAPI</text>
+
+  <!-- base -->
+  <rect x="624" y="272" width="150" height="56" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="699" y="305" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#1f2937">Base de données</text>
+
+  <!-- cache -->
+  <rect x="624" y="350" width="150" height="52" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text x="699" y="381" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13.5" font-weight="600" fill="#1f2937">Cache (jour 3)</text>
+
+  <!-- flèches -->
+  <path d="M214,200 C270,200 280,104 328,104" fill="none" stroke="#4f46e5" stroke-width="2.2" marker-end="url(#arr)"/>
+  <path d="M214,250 C270,250 280,318 328,318" fill="none" stroke="#4f46e5" stroke-width="2.2" stroke-dasharray="7 5" marker-end="url(#arr)"/>
+  <line x1="540" y1="300" x2="622" y2="300" stroke="#475569" stroke-width="2" marker-end="url(#arr-gris)"/>
+  <path d="M540,352 C580,352 590,376 622,376" fill="none" stroke="#475569" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arr-gris)"/>
+
+  <g font-family="system-ui, sans-serif" font-size="12" fill="#4f46e5">
+    <text x="262" y="132" text-anchor="middle">consomme</text>
+    <text x="262" y="306" text-anchor="middle">teste</text>
+  </g>
+
+  <!-- legende -->
+  <g font-family="system-ui, sans-serif" font-size="12" fill="#475569">
+    <line x1="24" y1="408" x2="64" y2="408" stroke="#4f46e5" stroke-width="2.2"/>
+    <text x="72" y="412">appels réalisés aujourd'hui</text>
+    <line x1="270" y1="408" x2="310" y2="408" stroke="#4f46e5" stroke-width="2.2" stroke-dasharray="7 5"/>
+    <text x="318" y="412">appels des jours 2 et 3</text>
+  </g>
+</svg>

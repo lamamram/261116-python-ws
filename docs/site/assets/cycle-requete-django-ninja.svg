@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 600" role="img" aria-label="Cycle de vie d'une requête dans Django-Ninja">
+  <defs>
+    <marker id="arr-ko" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/>
+    </marker>
+    <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="860" height="600" fill="#ffffff"/>
+  <text x="430" y="30" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#1f2937">Cycle de vie d'une requête dans Django-Ninja</text>
+  <line x1="56" y1="70" x2="56" y2="540" stroke="#cbd5e1" stroke-width="2"/>
+
+  <g font-family="system-ui, sans-serif" font-size="13.5" fill="#1f2937">
+    <circle cx="56" cy="70" r="15" fill="#4f46e5"/><text x="56" y="75" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">1</text>
+    <text x="86" y="75">Serveur WSGI (Gunicorn) → middlewares Django (sécurité, sessions…)</text>
+
+    <circle cx="56" cy="134" r="15" fill="#4f46e5"/><text x="56" y="139" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">2</text>
+    <text x="86" y="139">URLconf : <tspan font-family="ui-monospace, Consolas, monospace" font-size="12.5">path("v1/", api.urls)</tspan> → opération Ninja</text>
+    <text x="86" y="157" font-size="12" fill="#64748b">route inconnue → handler404 du projet</text>
+
+    <circle cx="56" cy="214" r="15" fill="#4f46e5"/><text x="56" y="219" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">3</text>
+    <text x="86" y="219">Authentification : <tspan font-family="ui-monospace, Consolas, monospace" font-size="12.5">auth=BearerJeton()</tspan> → <tspan font-family="ui-monospace, Consolas, monospace" font-size="12.5">request.auth</tspan></text>
+    <text x="86" y="237" font-size="12" fill="#64748b">échec → 401</text>
+
+    <circle cx="56" cy="294" r="15" fill="#4f46e5"/><text x="56" y="299" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">4</text>
+    <text x="86" y="299">Validation Pydantic : chemin, requête, corps (Schema)</text>
+    <text x="86" y="317" font-size="12" fill="#64748b">échec → 422</text>
+
+    <circle cx="56" cy="374" r="15" fill="#4f46e5"/><text x="56" y="379" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">5</text>
+    <text x="86" y="379">Décorateurs d'opération : droits Django (<tspan font-family="ui-monospace, Consolas, monospace" font-size="12.5">has_perm</tspan>)</text>
+    <text x="86" y="397" font-size="12" fill="#64748b">droit manquant → 403</text>
+
+    <circle cx="56" cy="454" r="15" fill="#4f46e5"/><text x="56" y="459" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">6</text>
+    <text x="86" y="459">Fonction d'opération : cache, puis ORM Django (base de données)</text>
+    <text x="86" y="477" font-size="12" fill="#64748b">objet absent → 404, doublon → 409</text>
+
+    <circle cx="56" cy="534" r="15" fill="#0f766e"/><text x="56" y="539" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">7</text>
+    <text x="86" y="539">Sérialisation via <tspan font-family="ui-monospace, Consolas, monospace" font-size="12.5">response=</tspan> → réponse JSON</text>
+  </g>
+
+  <!-- gestionnaires -->
+  <rect x="600" y="196" width="236" height="150" rx="10" fill="#fef2f2" stroke="#b91c1c" stroke-width="1.5"/>
+  <text x="718" y="224" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#b91c1c">api.exception_handler</text>
+  <text x="718" y="248" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12.5" fill="#1f2937">ErreurApi, ValidationError,</text>
+  <text x="718" y="266" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12.5" fill="#1f2937">Http404, HttpError, Exception</text>
+  <text x="718" y="296" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="12" fill="#1f2937">application/problem+json</text>
+  <text x="718" y="320" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#475569">même format qu'au jour 2</text>
+  <path d="M480,214 C540,214 560,240 598,250" fill="none" stroke="#b91c1c" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arr-ko)"/>
+  <path d="M400,294 C500,294 560,280 598,276" fill="none" stroke="#b91c1c" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arr-ko)"/>
+  <path d="M480,374 C550,374 590,340 640,348" fill="none" stroke="#b91c1c" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arr-ko)"/>
+
+  <!-- cache et base -->
+  <rect x="600" y="420" width="110" height="40" rx="8" fill="#fff7ed" stroke="#c2410c" stroke-width="1.5"/>
+  <text x="655" y="445" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#1f2937">Cache</text>
+  <rect x="726" y="420" width="110" height="40" rx="8" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="781" y="445" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#1f2937">Base SQL</text>
+  <line x1="560" y1="454" x2="598" y2="440" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+</svg>

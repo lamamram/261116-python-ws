@@ -1,0 +1,2228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Support interactif de formation Python Avancé — Web Services : 01 — Écosystème des web services et consommation d&#x27;API REST avec Python">
+<title>01 — Écosystème des web services et consommation d&#x27;API REST avec Python</title>
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --surface2: #1c2128; --border: #30363d;
+  --primary: #f0883e; --primary2: #ffa657;
+  --success: #3fb950; --warning: #d29922; --danger: #f85149;
+  --text: #e6edf3; --text-muted: #8b949e; --code-bg: #010409; --radius: 10px;
+  --topbar-h: 3.25rem;
+}
+:root[data-theme="light"] {
+  --bg: #ffffff; --surface: #f6f8fa; --surface2: #eaeef2; --border: #d0d7de;
+  --primary: #bc4c00; --primary2: #953800;
+  --success: #1a7f37; --warning: #9a6700; --danger: #cf222e;
+  --text: #1f2328; --text-muted: #656d76; --code-bg: #f6f8fa;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #ffffff; --surface: #f6f8fa; --surface2: #eaeef2; --border: #d0d7de;
+    --primary: #bc4c00; --primary2: #953800;
+    --success: #1a7f37; --warning: #9a6700; --danger: #cf222e;
+    --text: #1f2328; --text-muted: #656d76; --code-bg: #f6f8fa;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.7; transition: background .2s, color .2s; }
+
+/* TOPBAR — fixe, ne bouge jamais au scroll */
+.topbar {
+  position: sticky; top: 0; z-index: 200; height: var(--topbar-h);
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: .9rem; padding: 0 1rem;
+}
+.topbar .badge {
+  flex: 0 0 auto; background: var(--primary); color: #0d1117;
+  font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 20px; white-space: nowrap;
+}
+.topbar a.chapter-title {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: .5rem;
+  text-decoration: none; color: var(--text); font-weight: 700; font-size: .92rem;
+  overflow: hidden;
+}
+.topbar a.chapter-title:hover { color: var(--primary); }
+.topbar a.chapter-title .num { color: var(--primary); flex: 0 0 auto; }
+.topbar a.chapter-title .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-links { flex: 0 0 auto; display: flex; align-items: center; gap: .5rem; }
+.topbar-link {
+  white-space: nowrap; padding: .4rem .8rem; border: 1px solid var(--border); border-radius: 20px;
+  font-size: .8rem; font-weight: 600; color: var(--text-muted); text-decoration: none; transition: all .2s;
+}
+.topbar-link:hover { color: var(--primary); border-color: var(--primary); }
+.theme-toggle {
+  flex: 0 0 auto; background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  padding: .4rem .7rem; border-radius: 20px; font-size: .8rem; cursor: pointer;
+  display: inline-flex; align-items: center; gap: .35rem;
+}
+.theme-toggle:hover { border-color: var(--primary); }
+
+/* LAYOUT — sidebar gauche + contenu */
+.layout { display: flex; align-items: flex-start; }
+.sidebar {
+  flex: 0 0 280px; width: 280px;
+  position: sticky; top: var(--topbar-h);
+  height: calc(100vh - var(--topbar-h));
+  overflow-y: auto; border-right: 1px solid var(--border); background: var(--surface);
+  padding: 1.25rem 1rem 2rem;
+}
+.objectifs {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: .8rem 1rem; margin-bottom: 1.25rem;
+}
+.objectifs-label { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--primary); }
+.objectifs ul { margin: .4rem 0 0 1.1rem; }
+.objectifs li { font-size: .82rem; color: var(--text-muted); margin-bottom: .3rem; line-height: 1.4; }
+.side-nav { display: flex; flex-direction: column; gap: .1rem; }
+.side-nav button {
+  text-align: left; background: none; border: none; border-left: 3px solid transparent;
+  color: var(--text-muted); padding: .55rem .7rem; font-size: .87rem; font-weight: 500;
+  cursor: pointer; border-radius: 0 6px 6px 0; transition: all .15s;
+}
+.side-nav button:hover { color: var(--text); background: var(--surface2); }
+.side-nav button.active { color: var(--primary); border-left-color: var(--primary); background: var(--surface2); font-weight: 600; }
+.side-nav-sep { height: 1px; background: var(--border); margin: .6rem 0; }
+
+.content { flex: 1 1 auto; min-width: 0; }
+.tab-content { display: none; padding: 2rem 2.5rem 4rem; max-width: 1100px; margin: 0 auto; }
+.tab-content.active { display: block; }
+
+/* SECTIONS */
+h2 { font-size: 1.25rem; color: var(--primary2); margin: 1.8rem 0 .8rem; border-left: 3px solid var(--primary); padding-left: .75rem; }
+h3 { font-size: 1.05rem; color: var(--text); margin: 1.4rem 0 .6rem; }
+p { margin-bottom: .9rem; }
+ul, ol { padding-left: 1.4rem; margin-bottom: .9rem; }
+li { margin-bottom: .35rem; }
+
+/* RESSOURCES — liste sous forme de cartes plutôt que de puces */
+#tab-ressources ul { list-style: none; padding-left: 0; display: flex; flex-direction: column; gap: .5rem; }
+#tab-ressources li {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: .75rem 1rem; margin-bottom: 0;
+}
+#tab-ressources li a { color: var(--primary2); font-weight: 600; text-decoration: none; }
+#tab-ressources li a:hover { text-decoration: underline; }
+
+/* AIDE — divulgation progressive pas-à-pas */
+details.aide { margin-top: 1.5rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+details.aide summary {
+  cursor: pointer; padding: .8rem 1.1rem; font-weight: 600; color: var(--primary);
+  list-style: none; display: flex; align-items: center; gap: .5rem;
+}
+details.aide summary::-webkit-details-marker { display: none; }
+details.aide summary::before { content: "▶"; font-size: .7rem; transition: transform .15s; }
+details.aide[open] summary::before { transform: rotate(90deg); }
+details.aide .aide-body { padding: 0 1.1rem 1.1rem; border-top: 1px solid var(--border); margin-top: .2rem; padding-top: 1rem; }
+img { max-width: 100%; height: auto; display: block; margin: 1rem auto; }
+
+/* EXERCICE — un bloc par atelier, avec son aide pas-à-pas attachée juste en dessous */
+.exercice { padding: 1.3rem 0; border-top: 1px solid var(--border); }
+.exercice:first-of-type { border-top: none; padding-top: 0; }
+.exercice h3 { margin: 0 0 .8rem; color: var(--primary2); }
+
+/* CALLOUTS */
+.callout { border-radius: var(--radius); padding: .9rem 1.1rem; margin: 1.2rem 0; border-left: 4px solid; background: var(--surface2); }
+.callout.note   { border-color: var(--primary); }
+.callout.tip    { border-color: var(--success); }
+.callout.warn   { border-color: var(--warning); }
+.callout.danger { border-color: var(--danger); }
+.callout p:last-child { margin-bottom: 0; }
+.callout-title { font-weight: 700; font-size: .82rem; text-transform: uppercase; letter-spacing: .07em; margin-bottom: .4rem; }
+.callout.note   .callout-title { color: var(--primary); }
+.callout.tip    .callout-title { color: var(--success); }
+.callout.warn   .callout-title { color: var(--warning); }
+.callout.danger .callout-title { color: var(--danger); }
+
+/* TABLES */
+.table-wrap { overflow-x: auto; margin: 1rem 0; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th { background: var(--surface2); color: var(--primary2); text-align: left; padding: .6rem .9rem; font-weight: 600; border: 1px solid var(--border); }
+td { padding: .55rem .9rem; border: 1px solid var(--border); vertical-align: top; }
+tr:hover td { background: var(--surface2); }
+
+/* CODE */
+.code-block { position: relative; margin: 1rem 0; }
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1rem 1rem 1.2rem; overflow-x: auto; }
+code { font-family: 'Consolas', 'Cascadia Code', monospace; font-size: .88rem; color: var(--primary2); }
+p code, li code, td code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px; padding: .05rem .35rem; }
+.copy-btn {
+  position: absolute; top: .5rem; right: .5rem;
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted);
+  padding: .25rem .6rem; font-size: .75rem; border-radius: 5px; cursor: pointer; transition: all .2s;
+}
+.copy-btn:hover { background: var(--primary); color: #0d1117; }
+.copy-btn.copied { background: var(--success); color: #0d1117; }
+
+/* QUIZ */
+.quiz-question { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem; margin-bottom: 1.2rem; }
+.quiz-question h4 { color: var(--primary2); margin-bottom: .9rem; font-size: .98rem; }
+.quiz-options { display: flex; flex-direction: column; gap: .5rem; }
+.quiz-option {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: .6rem .9rem; cursor: pointer;
+  font-size: .9rem; transition: all .2s; text-align: left; color: var(--text);
+}
+.quiz-option:hover:not(:disabled) { border-color: var(--primary); }
+.quiz-option.correct { border-color: var(--success); color: var(--success); }
+.quiz-option.wrong   { border-color: var(--danger);  color: var(--danger);  }
+.quiz-option:disabled { cursor: default; }
+.quiz-feedback { margin-top: .6rem; font-size: .87rem; color: var(--text-muted); font-style: italic; }
+.quiz-score {
+  background: var(--surface2); border: 1px solid var(--primary);
+  border-radius: var(--radius); padding: 1.5rem; text-align: center; margin-top: 1.5rem; display: none;
+}
+.quiz-score .score-num { font-size: 2.5rem; font-weight: 700; color: var(--primary); }
+.quiz-score p { color: var(--text-muted); margin-top: .4rem; }
+.btn-restart { background: var(--primary); color: #0d1117; border: none; padding: .6rem 1.4rem; border-radius: 8px; font-weight: 700; cursor: pointer; margin-top: 1rem; font-size: .9rem; }
+.btn-restart:hover { background: var(--primary2); }
+
+/* RESPONSIVE — sidebar devient une barre horizontale sous 900px */
+@media (max-width: 900px) {
+  .layout { flex-direction: column; }
+  .sidebar {
+    position: static; width: 100%; height: auto; max-height: 40vh;
+    border-right: none; border-bottom: 1px solid var(--border);
+  }
+  .side-nav { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: .3rem; }
+  .side-nav button { border-left: none; border-bottom: 3px solid transparent; white-space: nowrap; border-radius: 6px 6px 0 0; }
+  .side-nav button.active { border-left-color: transparent; border-bottom-color: var(--primary); }
+  .side-nav-sep { display: none; }
+  .tab-content { padding: 1.5rem 1.2rem 3rem; }
+  .topbar a.chapter-title { font-size: .82rem; }
+}
+</style>
+<link rel="stylesheet" href="assets/course-common.css">
+<script src="assets/course-common.js" defer></script>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="badge">Python Avancé — Web Services</span>
+  <a class="chapter-title" href="index.html" title="Retour à l'accueil de la formation">
+    <span class="num">01</span><span class="txt">Écosystème des web services et consommation d&#x27;API REST avec Python</span>
+  </a>
+  <div class="topbar-links">
+    
+    <a class="topbar-link" href="index.html">Sommaire</a>
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Basculer entre thème clair et sombre">
+      <span id="theme-icon">🌙</span> <span id="theme-label">Sombre</span>
+    </button>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="objectifs"><span class="objectifs-label">Objectifs</span><ul><li>situer les web services, SOA, REST et OpenAPI dans une architecture d&#x27;entreprise</li><li>lire une requête et une réponse HTTP (méthode, en-têtes, statut, corps) et choisir le bon verbe et le bon code</li><li>interroger une API REST avec requests et httpx (paramètres, filtres, tri, pagination)</li><li>authentifier les appels (BASIC, Bearer) sans exposer de secret dans le code ni dans Git</li><li>interpréter les erreurs (401, 403, 404, 422, 429) et rendre un client robuste (délais, reprises, idempotence)</li><li>livrer un module client réutilisable `catalogue_client`</li></ul></div>
+    <nav class="side-nav" id="main-nav">
+      <button class="active" onclick="showTab('objectifs-pedagogiques')">Objectifs pédagogiques</button>
+  <button class="" onclick="showTab('organisation-de-la-journee')">Organisation de la journée</button>
+  <button class="" onclick="showTab('b1-bloc-1-70-min')">B1 bloc 1 · 70 min</button>
+  <button class="" onclick="showTab('b2-bloc-2-155-min')">B2 bloc 2 · 155 min</button>
+  <button class="" onclick="showTab('b3-bloc-2-atelier-105-min')">B3 bloc 2 (atelier) · 105 min</button>
+  <button class="" onclick="showTab('synthese-de-fin-de-journee')">Synthèse de fin de journée</button>
+  <button class="" onclick="showTab('annexe-commandes-du-jour-cheat-sheet')">Annexe — Commandes du jour (cheat-sheet)</button>
+    </nav>
+  </aside>
+  <div class="content">
+    <div id="tab-objectifs-pedagogiques" class="tab-content active">
+<p>À la fin de la journée, les stagiaires sont capables de :</p>
+<ul>
+<li>situer les web services, l'architecture orientée service (SOA), REST et OpenAPI dans une architecture d'entreprise ;</li>
+<li>lire une requête et une réponse HTTP (méthode, en-têtes, statut, corps) et choisir le bon verbe et le bon code ;</li>
+<li>interroger une API REST avec <code>requests</code> et <code>httpx</code> : paramètres, filtres, tri, pagination ;</li>
+<li>authentifier les appels (BASIC, Bearer) sans exposer de secret dans le code ni dans Git ;</li>
+<li>interpréter les erreurs (401, 403, 404, 422, 429) et rendre un client robuste (délais d'attente, reprises, idempotence) ;</li>
+<li>livrer un module client réutilisable, <code>catalogue_client</code>, qui servira de client de test les jours 2 et 3.</li>
+</ul>
+<h3>Livrable de la journée</h3>
+<p>Un dépôt <code>api-catalogue/</code> contenant :</p>
+<ul>
+<li>un environnement virtuel et un fichier <code>requirements.txt</code> ;</li>
+<li>un jeton d'API stocké hors du code (<code>.env</code>, ignoré par Git) ;</li>
+<li>le module <code>catalogue_client/gorest.py</code> : session HTTP configurée, authentification Bearer, reprises automatiques, exceptions typées, pagination par générateur ;</li>
+<li>trois scripts d'atelier (<code>explorer.py</code>, <code>basic_auth.py</code>, <code>main.py</code>) ;</li>
+<li>un jeu de commandes <code>curl.exe</code> de référence.</li>
+</ul>
+<div class="callout note"><div class="callout-title">Choix pédagogique</div><p>Le service cible est <strong>GoRest</strong> (<code>gorest.co.in</code>), une API publique de test : gratuite, sans carte bancaire, avec lecture sans jeton et écriture avec jeton. Ses quatre ressources principales (<code>users</code>, <code>posts</code>, <code>comments</code>, <code>tasks</code>) jouent le rôle des stagiaires, fiches, commentaires et tâches de préparation de session du catalogue. Les mêmes noms de champs serviront de modèle pour l'API que les stagiaires écriront le jour 2.</p></div>
+</div>
+
+<div id="tab-organisation-de-la-journee" class="tab-content">
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Heure</th>
+<th>Séquence</th>
+<th>Blocs programme</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>09h30 – 09h45</td>
+<td>Accueil, tour de table, vérification des postes (Python, accès réseau)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>09h45 – 10h20</td>
+<td><strong>Théorie</strong> — Web services, SOA, REST, OpenAPI</td>
+<td>Bloc 1</td>
+</tr>
+<tr>
+<td>10h20 – 10h55</td>
+<td><strong>Pratique</strong> — Premiers appels avec <code>curl.exe</code> et un client graphique</td>
+<td>Bloc 1</td>
+</tr>
+<tr>
+<td>10h55 – 11h10</td>
+<td>Pause</td>
+<td></td>
+</tr>
+<tr>
+<td>11h10 – 12h30</td>
+<td><strong>Pratique guidée</strong> — <code>requests</code>, paramètres, en-têtes, JSON</td>
+<td>Bloc 2</td>
+</tr>
+<tr>
+<td>12h30 – 13h30</td>
+<td>Déjeuner</td>
+<td></td>
+</tr>
+<tr>
+<td>13h30 – 14h45</td>
+<td><strong>Pratique guidée</strong> — authentification, erreurs, reprises, pagination</td>
+<td>Bloc 2</td>
+</tr>
+<tr>
+<td>14h45 – 15h00</td>
+<td>Pause</td>
+<td></td>
+</tr>
+<tr>
+<td>15h00 – 16h45</td>
+<td><strong>Atelier</strong> — Interroger des services web ouverts et avec authentification</td>
+<td>Bloc 2</td>
+</tr>
+<tr>
+<td>16h45 – 17h30</td>
+<td>Démonstrations, synthèse, aperçu du jour 2</td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout tip"><div class="callout-title">Rythme</div><p>La théorie ne dépasse jamais 20 minutes d'affilée. Chaque notion est suivie d'une manipulation : le formateur démontre, les stagiaires reproduisent dans leur éditeur (code-along). Les sections marquées <strong>🛠️ Micro-atelier</strong> durent 5 à 10 minutes.</p></div>
+<hr />
+</div>
+
+<div id="tab-b1-bloc-1-70-min" class="tab-content">
+<h3>1.1 Qu'est-ce qu'un web service ?</h3>
+<p>Un <strong>web service</strong> (service web) est un programme qui rend une fonction ou des données accessibles à un autre programme, <strong>à travers un réseau</strong>, selon trois conventions partagées :</p>
+<ul>
+<li>un <strong>protocole</strong> de transport standard (HTTP dans la quasi-totalité des cas) ;</li>
+<li>un <strong>format d'échange</strong> standard (JSON, XML) ;</li>
+<li>un <strong>contrat</strong> qui décrit ce que le service accepte et renvoie.</li>
+</ul>
+<p>Le service ne sait rien du langage du client, et le client ne sait rien du langage du service. Un script Python peut interroger un service écrit en Java, en Go ou en PHP, et inversement. C'est cela, l'<strong>interopérabilité</strong>.</p>
+<div class="callout note"><div class="callout-title">Analogie : la prise électrique</div><p>Un appareil se branche sur n'importe quelle prise murale sans connaître la centrale qui produit le courant. Le web service joue le rôle de la prise : la forme de la fiche (HTTP, JSON, contrat) est standard, la production derrière la prise est un détail d'implémentation.</p></div>
+<p><strong>Où les trouve-t-on en entreprise ?</strong> Quelques situations typiques pour des équipes de développement :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Besoin</th>
+<th>Exemple de service consommé</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Paiement en ligne</td>
+<td>API d'un prestataire de paiement</td>
+</tr>
+<tr>
+<td>Géolocalisation, adresses</td>
+<td>API d'adresses ou de cartographie</td>
+</tr>
+<tr>
+<td>Notifications</td>
+<td>API d'envoi d'e-mails ou de SMS</td>
+</tr>
+<tr>
+<td>Échange entre applications internes</td>
+<td>API d'un ERP, d'un CRM, d'un annuaire</td>
+</tr>
+<tr>
+<td>Données ouvertes</td>
+<td>API de portails open data</td>
+</tr>
+<tr>
+<td>Intelligence artificielle</td>
+<td>API de modèles de langage</td>
+</tr>
+</tbody>
+</table></div>
+<p>Dans tous ces cas, le développeur est <strong>consommateur</strong> d'une API qu'il n'a pas écrite. Les jours 2 et 3, il devient <strong>fournisseur</strong>.</p>
+<h3>1.2 Les grandes familles de services web</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Famille</th>
+<th>Format d'échange</th>
+<th>Description du contrat</th>
+<th>Usage courant</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SOAP</strong></td>
+<td>XML (enveloppe SOAP)</td>
+<td>WSDL</td>
+<td>systèmes d'entreprise historiques, banques, administrations</td>
+</tr>
+<tr>
+<td><strong>REST</strong></td>
+<td>JSON le plus souvent, XML possible</td>
+<td>OpenAPI (Swagger)</td>
+<td>API publiques et internes, applications mobiles, microservices</td>
+</tr>
+<tr>
+<td><strong>GraphQL</strong></td>
+<td>JSON</td>
+<td>schéma typé</td>
+<td>clients qui choisissent précisément les champs à recevoir</td>
+</tr>
+<tr>
+<td><strong>gRPC</strong></td>
+<td>Protocol Buffers sur HTTP/2</td>
+<td>fichier <code>.proto</code></td>
+<td>communication interne haute performance entre services</td>
+</tr>
+</tbody>
+</table></div>
+<p>Cette formation se concentre sur <strong>REST</strong>, qui domine aujourd'hui les API exposées par les éditeurs et les équipes web. Les trois autres familles restent utiles à reconnaître : un projet réel combine souvent plusieurs styles.</p>
+<div class="callout warn"><div class="callout-title">Piège de vocabulaire</div><p>« API REST » est devenu un terme générique qui désigne en pratique « API HTTP qui renvoie du JSON ». Peu d'API respectent toutes les contraintes REST de la thèse d'origine (section 1.4). Le formateur utilisera « API REST » au sens courant, et précisera quand une contrainte précise est en jeu.</p></div>
+<h3>1.3 Architecture orientée service (SOA)</h3>
+<p><img alt="SOA" src="../contenus/soa-vs-microservices.svg" /></p>
+<p>La <strong>SOA</strong> (Service-Oriented Architecture) est un style d'architecture dans lequel un système d'information est découpé en <strong>services</strong> autonomes, qui coopèrent par des messages plutôt que par des appels de fonctions internes.</p>
+<p>Les composantes à connaître :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Composante</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Fournisseur</strong> (provider)</td>
+<td>expose le service et implémente la logique</td>
+</tr>
+<tr>
+<td><strong>Consommateur</strong> (consumer)</td>
+<td>appelle le service, sans connaître son implémentation</td>
+</tr>
+<tr>
+<td><strong>Contrat</strong></td>
+<td>décrit les opérations, les paramètres, les formats, les erreurs (WSDL pour SOAP, OpenAPI pour REST)</td>
+</tr>
+<tr>
+<td><strong>Registre ou catalogue</strong></td>
+<td>permet de découvrir les services disponibles (annuaire d'entreprise, portail développeur)</td>
+</tr>
+<tr>
+<td><strong>Bus ou passerelle</strong></td>
+<td>route, sécurise, journalise et limite les appels (API gateway, ESB)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Principes qui reviennent dans toutes les définitions de la SOA :</p>
+<ul>
+<li><strong>couplage faible</strong> : le consommateur dépend du contrat, jamais du code du fournisseur ;</li>
+<li><strong>réutilisabilité</strong> : un même service sert plusieurs consommateurs ;</li>
+<li><strong>autonomie</strong> : un service se déploie, se met à jour et tombe en panne indépendamment des autres ;</li>
+<li><strong>découverte et composition</strong> : on assemble des services pour construire un processus métier.</li>
+</ul>
+<div class="callout note"><div class="callout-title">Analogie : les prestataires d'un chantier</div><p>Un maçon, un électricien et un plombier se coordonnent par un plan et des interfaces (emplacement des gaines, arrivées d'eau), pas en travaillant dans la tête les uns des autres. Le contrat joue le rôle du plan : tant qu'il est respecté, chacun peut changer d'outils ou d'équipe.</p></div>
+<p><strong>SOA et microservices.</strong> Les microservices reprennent l'idée de services autonomes, avec des services plus petits, déployés indépendamment, souvent derrière des API REST. On y retrouve les mêmes questions : contrat, versionnement, authentification, tolérance aux pannes. Ce sont précisément les sujets des trois jours.</p>
+<h3>1.4 REST : un style d'architecture</h3>
+<p><strong>REST</strong> (REpresentational State Transfer) est un style d'architecture décrit par Roy Fielding dans sa thèse de doctorat (2000). Il s'appuie sur les mécanismes du Web : URL, verbes HTTP, codes de statut, en-têtes.</p>
+<p><strong>Les contraintes du style :</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Contrainte</th>
+<th>Signification pratique</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Client–serveur</td>
+<td>l'interface et le stockage évoluent séparément</td>
+</tr>
+<tr>
+<td><strong>Sans état</strong> (stateless)</td>
+<td>chaque requête contient tout ce qu'il faut pour être traitée ; le serveur ne mémorise pas le client entre deux appels</td>
+</tr>
+<tr>
+<td>Cache</td>
+<td>les réponses indiquent si elles sont réutilisables (<code>ETag</code>, <code>Cache-Control</code>)</td>
+</tr>
+<tr>
+<td><strong>Interface uniforme</strong></td>
+<td>ressources identifiées par URL, manipulées par des représentations, avec des verbes standard</td>
+</tr>
+<tr>
+<td>Système en couches</td>
+<td>proxys, passerelles et répartiteurs de charge s'intercalent sans que le client le sache</td>
+</tr>
+<tr>
+<td>Code à la demande (optionnel)</td>
+<td>le serveur peut envoyer du code exécutable (rarement utilisé)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Vocabulaire de base :</strong></p>
+<ul>
+<li>une <strong>ressource</strong> est une entité identifiable : un utilisateur, une formation, une session ;</li>
+<li>une <strong>URL</strong> (ou URI) identifie la ressource : <code>/public/v3/users/0190a8e4-…</code> ;</li>
+<li>une <strong>représentation</strong> est la forme transmise de la ressource, ici un document JSON ;</li>
+<li>un <strong>verbe</strong> HTTP exprime l'action : lire (<code>GET</code>), créer (<code>POST</code>), modifier (<code>PATCH</code>, <code>PUT</code>), supprimer (<code>DELETE</code>).</li>
+</ul>
+<div class="callout tip"><div class="callout-title">Convention de nommage des URL</div><p>Des <strong>noms pluriels</strong> pour les collections (<code>/users</code>, <code>/posts</code>), un <strong>identifiant</strong> pour un élément (<code>/users/{id}</code>), des ressources liées en sous-chemin ou en filtre (<code>/posts?filter[user_id]=…</code>). Le verbe est dans la méthode HTTP, pas dans l'URL : <code>DELETE /users/42</code>, et non <code>GET /deleteUser?id=42</code>.</p></div>
+<p><strong>Niveaux de maturité (modèle de Richardson).</strong> Grille utile pour évaluer une API existante :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Niveau</th>
+<th>Caractéristique</th>
+<th>Exemple</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>un seul point d'entrée, tout passe par <code>POST</code></td>
+<td><code>POST /api</code> avec l'action dans le corps</td>
+</tr>
+<tr>
+<td>1</td>
+<td>des ressources distinctes</td>
+<td><code>/users</code>, <code>/posts</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>verbes HTTP et codes de statut utilisés correctement</td>
+<td><code>GET /users</code>, <code>POST /users</code> → <code>201</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>liens hypermédia entre ressources (HATEOAS)</td>
+<td>la réponse contient les URL des actions possibles</td>
+</tr>
+</tbody>
+</table></div>
+<p>La plupart des API professionnelles visent le <strong>niveau 2</strong>, et c'est la cible du fil rouge. GoRest ajoute des liens de pagination dans l'en-tête <code>Link</code> (RFC 8288), un début d'hypermédia.</p>
+<h3>1.5 Anatomie d'un échange HTTP</h3>
+<p>Un appel d'API est un échange HTTP : une requête, une réponse.</p>
+<p><img alt="Anatomie d'une requête et d'une réponse HTTP" src="../contenus/anatomie-requete-reponse.svg" /></p>
+<p><strong>La requête</strong> comprend :</p>
+<ol>
+<li>une <strong>ligne de requête</strong> : méthode, cible (chemin et paramètres), version du protocole ;</li>
+<li>des <strong>en-têtes</strong> (headers) : <code>Accept</code>, <code>Content-Type</code>, <code>Authorization</code>, etc. ;</li>
+<li>un <strong>corps</strong> (body), facultatif : le document JSON envoyé avec <code>POST</code> ou <code>PATCH</code>.</li>
+</ol>
+<p><strong>La réponse</strong> comprend un <strong>code de statut</strong>, des en-têtes et un corps.</p>
+<p><strong>Les méthodes HTTP</strong> à connaître :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Méthode</th>
+<th>Action</th>
+<th>Sûre</th>
+<th>Idempotente</th>
+<th>Corps de requête</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td>lire une ressource ou une collection</td>
+<td>oui</td>
+<td>oui</td>
+<td>non</td>
+</tr>
+<tr>
+<td><code>HEAD</code></td>
+<td>lire uniquement les en-têtes</td>
+<td>oui</td>
+<td>oui</td>
+<td>non</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td>créer une ressource ou déclencher un traitement</td>
+<td>non</td>
+<td><strong>non</strong></td>
+<td>oui</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td>remplacer entièrement une ressource</td>
+<td>non</td>
+<td>oui</td>
+<td>oui</td>
+</tr>
+<tr>
+<td><code>PATCH</code></td>
+<td>modifier partiellement une ressource</td>
+<td>non</td>
+<td>selon l'API</td>
+<td>oui</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td>supprimer une ressource</td>
+<td>non</td>
+<td>oui</td>
+<td>non</td>
+</tr>
+<tr>
+<td><code>OPTIONS</code></td>
+<td>connaître les méthodes autorisées (CORS)</td>
+<td>oui</td>
+<td>oui</td>
+<td>non</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>Sûre</strong> : la méthode ne modifie pas l'état du serveur.</li>
+<li><strong>Idempotente</strong> : répéter la requête N fois produit le même état final qu'une seule fois. C'est la propriété qui autorise une <strong>reprise automatique</strong> après une coupure réseau (section 2.8).</li>
+</ul>
+<div class="callout warn"><div class="callout-title"><code>POST</code> n'est pas idempotent</div><p>Un <code>POST</code> rejoué après un délai d'attente peut créer deux ressources. Les API sérieuses proposent un en-tête <code>Idempotency-Key</code>, que GoRest accepte sur ses <code>POST</code>. Nous l'utiliserons dans l'atelier.</p></div>
+<p><strong>Les codes de statut</strong> se lisent par famille :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Famille</th>
+<th>Sens</th>
+<th>Codes à connaître</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>2xx</code></td>
+<td>succès</td>
+<td><code>200 OK</code>, <code>201 Created</code> (avec <code>Location</code>), <code>204 No Content</code></td>
+</tr>
+<tr>
+<td><code>3xx</code></td>
+<td>redirection ou cache</td>
+<td><code>301</code>, <code>302</code>, <code>304 Not Modified</code></td>
+</tr>
+<tr>
+<td><code>4xx</code></td>
+<td>erreur <strong>du client</strong></td>
+<td><code>400</code>, <code>401</code>, <code>403</code>, <code>404</code>, <code>409</code>, <code>412</code>, <code>422</code>, <code>429</code></td>
+</tr>
+<tr>
+<td><code>5xx</code></td>
+<td>erreur <strong>du serveur</strong></td>
+<td><code>500</code>, <code>502</code>, <code>503</code>, <code>504</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Les en-têtes qui comptent pour un client d'API :</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>En-tête</th>
+<th>Sens</th>
+<th>Sens de circulation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Accept</code></td>
+<td>format de réponse souhaité (<code>application/json</code>)</td>
+<td>requête</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>format du corps envoyé ou reçu</td>
+<td>les deux</td>
+</tr>
+<tr>
+<td><code>Authorization</code></td>
+<td>identification (BASIC, Bearer)</td>
+<td>requête</td>
+</tr>
+<tr>
+<td><code>User-Agent</code></td>
+<td>identifie le client (utile aux fournisseurs)</td>
+<td>requête</td>
+</tr>
+<tr>
+<td><code>ETag</code>, <code>If-Match</code>, <code>If-None-Match</code></td>
+<td>version d'une ressource, cache et concurrence</td>
+<td>les deux</td>
+</tr>
+<tr>
+<td><code>Link</code></td>
+<td>URL des pages suivantes ou précédentes</td>
+<td>réponse</td>
+</tr>
+<tr>
+<td><code>Retry-After</code></td>
+<td>délai avant de réessayer (après <code>429</code> ou <code>503</code>)</td>
+<td>réponse</td>
+</tr>
+<tr>
+<td><code>RateLimit</code>, <code>RateLimit-Policy</code></td>
+<td>quota restant et politique de limitation</td>
+<td>réponse</td>
+</tr>
+</tbody>
+</table></div>
+<h3>1.6 Décrire et documenter une API : OpenAPI et Swagger</h3>
+<p><strong>OpenAPI</strong> est la spécification standard pour décrire une API REST dans un document YAML ou JSON : chemins, méthodes, paramètres, schémas de données, codes de réponse, schémas de sécurité. <strong>Swagger</strong> désigne l'ensemble d'outils historiquement associé : <strong>Swagger UI</strong> (documentation interactive), <strong>Swagger Editor</strong>, générateurs de code.</p>
+<p>Un extrait minimal, pour savoir le lire :</p>
+<div class="code-block"><pre><code class="language-yaml">openapi: 3.1.0
+info:
+  title: API Catalogue
+  version: &quot;1.0&quot;
+paths:
+  /formations:
+    get:
+      summary: Lister les formations
+      parameters:
+        - name: duree_max
+          in: query
+          schema: { type: integer }
+      responses:
+        &quot;200&quot;:
+          description: Liste paginée
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: &quot;#/components/schemas/Formation&quot; }
+components:
+  schemas:
+    Formation:
+      type: object
+      required: [code, titre]
+      properties:
+        code: { type: string, example: PYT100614-F }
+        titre: { type: string }
+        duree_jours: { type: integer }
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Deux démarches de conception :</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Démarche</th>
+<th>Principe</th>
+<th>Quand l'utiliser</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Contract-first</strong></td>
+<td>on écrit le contrat OpenAPI, puis on génère squelettes et clients</td>
+<td>API partagée entre plusieurs équipes</td>
+</tr>
+<tr>
+<td><strong>Code-first</strong></td>
+<td>on écrit le code, le framework génère le contrat</td>
+<td>équipe unique, itérations rapides</td>
+</tr>
+</tbody>
+</table></div>
+<p>FastAPI (jour 2) et Django-Ninja (jour 3) sont <strong>code-first</strong> : ils produisent automatiquement le document OpenAPI et une page Swagger UI à partir des annotations de type Python. GoRest publie lui aussi une spécification OpenAPI 3.1 et une page Swagger UI (<code>gorest.co.in/docs/api</code>).</p>
+<div class="callout tip"><div class="callout-title">Réflexe de consommateur</div><p>Avant d'écrire une ligne de client, ouvrir la page Swagger UI ou la référence du fournisseur. Les champs obligatoires, les valeurs autorisées et les codes d'erreur y figurent.</p></div>
+<h3>1.7 Outils de test de services web</h3>
+<p>Avant de coder un client, on <strong>explore</strong> l'API avec un outil interactif :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Outil</th>
+<th>Type</th>
+<th>Intérêt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>curl</code></td>
+<td>ligne de commande</td>
+<td>présent partout, copiable dans la documentation et les tickets</td>
+</tr>
+<tr>
+<td>HTTPie</td>
+<td>ligne de commande</td>
+<td>syntaxe plus lisible que <code>curl</code></td>
+</tr>
+<tr>
+<td>Postman, Bruno</td>
+<td>application graphique</td>
+<td>collections d'appels, variables d'environnement, partage en équipe</td>
+</tr>
+<tr>
+<td>Extension VS Code <em>REST Client</em></td>
+<td>fichiers <code>.http</code></td>
+<td>requêtes versionnées dans le dépôt, exécutées depuis l'éditeur</td>
+</tr>
+<tr>
+<td>Swagger UI</td>
+<td>navigateur</td>
+<td>tester depuis la documentation OpenAPI</td>
+</tr>
+<tr>
+<td>Console GoRest</td>
+<td>navigateur</td>
+<td>console de test du fournisseur, sans installation</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout warn"><div class="callout-title">Piège Windows : <code>curl</code> n'est pas <code>curl.exe</code></div><p>Dans Windows PowerShell 5.1, <code>curl</code> est un <strong>alias</strong> de <code>Invoke-WebRequest</code>, dont la syntaxe diffère. Les commandes de ce support utilisent <strong><code>curl.exe</code></strong> pour appeler le vrai programme. Sous Linux et macOS, <code>curl</code> suffit.</p></div>
+<h3>🛠️ Micro-atelier 1 — Premiers appels avec <code>curl.exe</code> (35 min)</h3>
+<p><strong>Objectif</strong> : lire une requête et une réponse HTTP complètes, sans écrire de code.</p>
+<p><strong>Étape 1 — Une collection, sans jeton.</strong> Les lectures GoRest ne demandent pas de jeton. L'option <code>-g</code> désactive l'interprétation des crochets par <code>curl</code> (sinon <code>page[size]</code> est pris pour une plage) :</p>
+<div class="code-block"><pre><code class="language-bash">curl.exe -g &quot;https://gorest.co.in/public/v3/users?page[size]=3&quot;
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Étape 2 — Voir la conversation HTTP complète.</strong> <code>-i</code> affiche les en-têtes de réponse, <code>-v</code> affiche aussi la requête envoyée :</p>
+<div class="code-block"><pre><code class="language-bash">curl.exe -g -i &quot;https://gorest.co.in/public/v3/users?page[size]=3&quot;
+curl.exe -g -v &quot;https://gorest.co.in/public/v3/users?page[size]=3&quot;
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>À repérer dans la réponse : le code de statut, <code>Content-Type</code>, <code>ETag</code>, <code>RateLimit-Policy</code> et <code>RateLimit</code>, l'objet <code>meta</code> du corps (<code>has_more</code>, <code>next_cursor</code>), et l'éventuel en-tête <code>Link</code>.</p>
+<p><strong>Étape 3 — Un élément.</strong> Copier un <code>id</code> de l'étape 1 :</p>
+<div class="code-block"><pre><code class="language-bash">curl.exe &quot;https://gorest.co.in/public/v3/users/&lt;id-copié&gt;&quot;
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Étape 4 — Filtres, tri, champs.</strong> Les paramètres de liste sont décrits dans la référence de la ressource :</p>
+<div class="code-block"><pre><code class="language-bash">curl.exe -g &quot;https://gorest.co.in/public/v3/users?filter[status]=active&amp;sort=name&amp;fields[users]=id,name&amp;page[size]=5&quot;
+curl.exe -g &quot;https://gorest.co.in/public/v3/posts?include=user,comments&amp;page[size]=2&quot;
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Étape 5 — Provoquer des erreurs volontairement.</strong> GoRest propose des points d'entrée de test :</p>
+<div class="code-block"><pre><code class="language-bash">curl.exe -i &quot;https://gorest.co.in/public/v3/http/status/404&quot;
+curl.exe -i &quot;https://gorest.co.in/public/v3/http/status/429&quot;
+curl.exe -g &quot;https://gorest.co.in/public/v3/http/delay/2000&quot;
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Étape 6 — Rejouer dans un client graphique.</strong> Reproduire l'étape 4 dans Postman, Bruno ou la console GoRest, et comparer.</p>
+<p><strong>Checklist de fin de micro-atelier</strong></p>
+<ul>
+<li>[ ] le stagiaire sait lire le statut, les en-têtes et le corps d'une réponse ;</li>
+<li>[ ] il distingue une collection (<code>data</code> + <code>meta</code>) d'un élément seul ;</li>
+<li>[ ] il a obtenu un <code>404</code> et un <code>429</code> volontairement et lu leur corps ;</li>
+<li>[ ] il sait pourquoi <code>-g</code> est nécessaire avec des crochets.</li>
+</ul>
+<p><strong>Questions de contrôle</strong> (à poser à l'oral, réponses ci-dessous) :</p>
+<ol>
+<li>Quelle contrainte REST impose d'envoyer le jeton à chaque requête ?</li>
+<li><code>PUT</code> ou <code>PATCH</code> pour changer uniquement l'adresse e-mail d'un utilisateur ?</li>
+<li>Pourquoi une reprise automatique est-elle risquée sur un <code>POST</code> ?</li>
+<li>Que signifie <code>304 Not Modified</code> pour un client ?</li>
+</ol>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Réponse</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Sans état</strong> : le serveur ne conserve pas de session, chaque requête porte son <code>Authorization</code>.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>PATCH</code> : modification partielle. <code>PUT</code> remplace la ressource entière.</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>POST</code> n'est pas idempotent : si la première requête a abouti avant la coupure, la reprise crée un doublon.</td>
+</tr>
+<tr>
+<td>4</td>
+<td>La copie locale (identifiée par son <code>ETag</code>) est toujours valide : aucun corps n'est renvoyé.</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+</div>
+
+<div id="tab-b2-bloc-2-155-min" class="tab-content">
+<h3>2.1 Préparer l'environnement de travail (10 min)</h3>
+<p><strong>Prérequis techniques</strong> : Python 3.10 ou supérieur (3.12 recommandé), un éditeur (VS Code, PyCharm), un accès Internet sortant vers <code>gorest.co.in</code> et <code>httpbin.org</code> (atelier BASIC).</p>
+<div class="code-block"><pre><code class="language-bash"># Linux, macOS
+mkdir api-catalogue &amp;&amp; cd api-catalogue
+python3 -m venv .venv
+source .venv/bin/activate
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-powershell"># Windows PowerShell
+mkdir api-catalogue; cd api-catalogue
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-bash">python --version                      # 3.10 minimum
+pip install requests httpx python-dotenv pytest
+pip freeze &gt; requirements.txt
+git init
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Arborescence cible de la journée :</p>
+<div class="code-block"><pre><code>api-catalogue/
+├── .env                      # secrets locaux — jamais versionné
+├── .gitignore
+├── requirements.txt
+├── catalogue_client/
+│   ├── __init__.py
+│   ├── config.py
+│   └── gorest.py
+├── explorer.py
+├── basic_auth.py
+└── main.py
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-bash"># .gitignore (à créer avant le premier commit)
+printf '.venv/\n__pycache__/\n*.pyc\n.env\n' &gt; .gitignore
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="callout danger"><div class="callout-title">Un jeton n'entre jamais dans Git</div><p>Un secret commité reste dans l'historique, même après suppression du fichier. Le fichier <code>.env</code> est dans <code>.gitignore</code> <strong>avant</strong> le premier <code>git add</code>. Si un jeton a fuité : le révoquer dans la console du fournisseur, puis en créer un nouveau.</p></div>
+<p><strong>Créer le jeton GoRest</strong> (une fois, en début de séance) :</p>
+<ol>
+<li>se connecter à GoRest avec un compte Google, Microsoft ou GitHub ;</li>
+<li>ouvrir la page <strong>Tokens</strong> et créer un jeton (un jeton par projet) ;</li>
+<li>accorder les portées (<code>scopes</code>) nécessaires à l'atelier : lecture et écriture sur <code>users</code>, et au minimum lecture sur <code>posts</code>, <code>comments</code> et <code>tasks</code> ;</li>
+<li><strong>copier le jeton immédiatement</strong> : il n'est affiché qu'une seule fois.</li>
+</ol>
+<p>Le fournisseur précise qu'il s'agit d'une API de test publique : aucune donnée personnelle réelle ne doit y être envoyée, et les données sont réinitialisées toutes les 3 heures.</p>
+<div class="code-block"><pre><code class="language-bash"># .env
+GOREST_TOKEN=colle-ici-le-jeton
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<h3>2.2 Choisir une bibliothèque cliente HTTP</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Bibliothèque</th>
+<th>Nature</th>
+<th>Points forts</th>
+<th>Limites</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>urllib.request</code></td>
+<td>bibliothèque standard</td>
+<td>aucune dépendance</td>
+<td>verbeuse, JSON et sessions à gérer à la main</td>
+</tr>
+<tr>
+<td><code>http.client</code></td>
+<td>bibliothèque standard</td>
+<td>contrôle total du protocole</td>
+<td>très bas niveau</td>
+</tr>
+<tr>
+<td><strong><code>requests</code></strong></td>
+<td>tierce, synchrone</td>
+<td>API très lisible, sessions, adaptateurs, écosystème immense</td>
+<td>pas d'<code>async</code>, pas de HTTP/2</td>
+</tr>
+<tr>
+<td><strong><code>httpx</code></strong></td>
+<td>tierce, sync et <code>async</code></td>
+<td>API proche de <code>requests</code>, <code>async</code>, HTTP/2 en option, <code>base_url</code> natif</td>
+<td>écosystème d'extensions plus récent</td>
+</tr>
+<tr>
+<td><code>aiohttp</code></td>
+<td>tierce, <code>async</code></td>
+<td>client et serveur asynchrones</td>
+<td>API différente de <code>requests</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Choix pour la journée</strong> : <code>requests</code> pour construire le client (section 2.3 à 2.10), puis <code>httpx</code> pour les appels concurrents (section 2.11). Les deux se ressemblent assez pour qu'une migration soit mécanique.</p>
+<h3>2.3 Premier appel avec <code>requests</code></h3>
+<div class="code-block"><pre><code class="language-python">import requests
+
+URL = &quot;https://gorest.co.in/public/v3/users&quot;
+
+r = requests.get(URL, params={&quot;page[size]&quot;: 5}, timeout=10)
+
+print(r.status_code)                    # 200
+print(r.headers[&quot;Content-Type&quot;])        # application/json...
+print(r.url)                            # URL réellement envoyée
+print(r.elapsed.total_seconds())        # durée de l'échange
+
+corps = r.json()
+for u in corps[&quot;data&quot;]:
+    print(u[&quot;id&quot;], u[&quot;name&quot;], u[&quot;status&quot;])
+print(corps[&quot;meta&quot;])                    # has_more, next_cursor, total
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>L'objet <code>Response</code> expose :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Attribut ou méthode</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>status_code</code></td>
+<td>code HTTP (entier)</td>
+</tr>
+<tr>
+<td><code>ok</code></td>
+<td><code>True</code> si le code est inférieur à 400</td>
+</tr>
+<tr>
+<td><code>headers</code></td>
+<td>en-têtes de réponse (insensibles à la casse)</td>
+</tr>
+<tr>
+<td><code>text</code></td>
+<td>corps décodé en <code>str</code></td>
+</tr>
+<tr>
+<td><code>content</code></td>
+<td>corps brut en <code>bytes</code></td>
+</tr>
+<tr>
+<td><code>json()</code></td>
+<td>corps décodé en objets Python (lève <code>ValueError</code> si ce n'est pas du JSON)</td>
+</tr>
+<tr>
+<td><code>url</code></td>
+<td>URL finale, redirections et encodage compris</td>
+</tr>
+<tr>
+<td><code>elapsed</code></td>
+<td>durée entre l'envoi et la réception des en-têtes</td>
+</tr>
+<tr>
+<td><code>history</code></td>
+<td>liste des redirections suivies</td>
+</tr>
+<tr>
+<td><code>request</code></td>
+<td>requête envoyée (méthode, URL, en-têtes)</td>
+</tr>
+<tr>
+<td><code>raise_for_status()</code></td>
+<td>lève <code>HTTPError</code> si le code est <code>4xx</code> ou <code>5xx</code></td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout warn"><div class="callout-title"><code>timeout</code> n'a pas de valeur par défaut</div><p>Sans <code>timeout</code>, <code>requests</code> peut attendre indéfiniment une réponse qui n'arrive pas. Un script de production bloqué sur un appel réseau est un incident classique. <strong>Tout appel porte un <code>timeout</code>.</strong> La section 2.8 détaille la forme <code>(connexion, lecture)</code>.</p></div>
+<h3>🛠️ Micro-atelier 2 — Inspecter ce qui est vraiment envoyé (10 min)</h3>
+<p><code>requests</code> permet de construire la requête <strong>sans l'envoyer</strong> : très utile pour comprendre l'encodage des paramètres.</p>
+<div class="code-block"><pre><code class="language-python">import requests
+
+req = requests.Request(
+    &quot;GET&quot;,
+    &quot;https://gorest.co.in/public/v3/users&quot;,
+    params={&quot;filter[status]&quot;: &quot;active&quot;, &quot;sort&quot;: &quot;name&quot;, &quot;page[size]&quot;: 3},
+    headers={&quot;Accept&quot;: &quot;application/json&quot;},
+)
+prepared = req.prepare()
+
+print(prepared.method, prepared.url)
+print(dict(prepared.headers))
+print(prepared.body)           # None pour un GET
+
+## pour éxécuter la requête préparée
+s = requests.Session()
+response = s.send(prepared, timeout=10)
+print(response.status_code, response.text)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>À constater : les crochets sont encodés en <code>%5B</code> et <code>%5D</code> dans <code>prepared.url</code>. L'encodage est équivalent pour le serveur, qui décode les paramètres avant de les interpréter.</p>
+<p><strong>Consigne</strong> : modifier <code>params</code> pour demander uniquement les champs <code>id</code> et <code>email</code> (<code>fields[users]=id,email</code>), puis envoyer la requête avec <code>requests.Session().send(prepared, timeout=10)</code> et afficher le résultat.</p>
+<h3>2.4 Envoyer des paramètres : requête, chemin, en-têtes, corps</h3>
+<p>Une requête transporte des informations à quatre endroits :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Emplacement</th>
+<th>Usage</th>
+<th>Syntaxe <code>requests</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Chemin</strong> (path)</td>
+<td>identifier une ressource</td>
+<td>f-string : <code>f"{base}/users/{user_id}"</code></td>
+</tr>
+<tr>
+<td><strong>Chaîne de requête</strong> (query)</td>
+<td>filtrer, trier, paginer</td>
+<td><code>params={...}</code></td>
+</tr>
+<tr>
+<td><strong>En-têtes</strong></td>
+<td>format, authentification, versions</td>
+<td><code>headers={...}</code></td>
+</tr>
+<tr>
+<td><strong>Corps</strong> (body)</td>
+<td>données à créer ou modifier</td>
+<td><code>json={...}</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Paramètres de requête</strong> : <code>params</code> encode les valeurs, y compris les espaces et les caractères accentués.</p>
+<div class="code-block"><pre><code class="language-python">params = {
+    &quot;filter[status]&quot;: &quot;active&quot;,
+    &quot;sort&quot;: &quot;-created_at&quot;,          # tri décroissant
+    &quot;fields[users]&quot;: &quot;id,name&quot;,     # champs retournés
+    &quot;page[size]&quot;: 10,
+}
+r = requests.get(URL, params=params, timeout=10)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="callout tip"><div class="callout-title">Valeurs multiples</div><p>GoRest attend une liste séparée par des virgules (<code>filter[status]=active,inactive</code>). Il faut donc passer la chaîne <code>"active,inactive"</code>, et non une liste Python : <code>requests</code> encoderait la liste en paramètres répétés (<code>status=a&amp;status=b</code>), une convention différente selon les API. Toujours lire la référence du fournisseur.</p></div>
+<p><strong>Paramètres de chemin</strong> : un identifiant venu de l'extérieur (saisie, fichier) ne se colle pas tel quel dans une URL.</p>
+<div class="code-block"><pre><code class="language-python">from urllib.parse import quote
+
+def url_utilisateur(base: str, user_id: str) -&gt; str:
+    return f&quot;{base}/users/{quote(user_id, safe='')}&quot;
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><code>quote(..., safe="")</code> neutralise les <code>/</code>, <code>?</code> et <code>#</code> qui détourneraient la requête vers un autre chemin.</p>
+<p><strong>En-têtes</strong> : <code>Accept: application/json</code> indique le format attendu. <code>requests</code> ajoute lui-même <code>Content-Type: application/json</code> quand on utilise <code>json=</code>.</p>
+<p><strong>Corps</strong> : deux formes à ne pas confondre.</p>
+<div class="code-block"><pre><code class="language-python"># JSON : Content-Type: application/json
+requests.post(URL, json={&quot;name&quot;: &quot;Léa&quot;, &quot;email&quot;: &quot;lea@example.com&quot;}, timeout=10)
+
+# Formulaire : Content-Type: application/x-www-form-urlencoded
+requests.post(URL, data={&quot;name&quot;: &quot;Léa&quot;}, timeout=10)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Une API REST moderne attend du JSON : on utilise <code>json=</code>, jamais <code>data=json.dumps(...)</code> (qui n'ajoute pas l'en-tête <code>Content-Type</code>).</p>
+<h3>2.5 Gérer les paramètres d'accès à l'API</h3>
+<p>Un client sérieux ne répète pas l'URL de base, le jeton et le délai d'attente dans chaque appel. Ces <strong>paramètres d'accès</strong> sont regroupés dans un objet de configuration, alimentés par l'environnement.</p>
+<div class="code-block"><pre><code class="language-python"># catalogue_client/config.py
+import os
+from dataclasses import dataclass, field
+from typing import Self
+
+from dotenv import load_dotenv
+
+load_dotenv()  # lit .env s'il existe, sans écraser les variables déjà définies
+
+
+@dataclass(frozen=True, kw_only=True)
+class Settings:
+    base_url: str = &quot;https://gorest.co.in/public/v3&quot;
+    token: str | None = field(default=None, repr=False)   # repr=False : le jeton n'apparaît pas dans les logs
+    timeout: tuple[float, float] = (3.05, 10.0)           # (connexion, lecture) en secondes
+
+    @classmethod
+    def from_env(cls) -&gt; Self:
+        return cls(
+            base_url=os.getenv(&quot;GOREST_BASE_URL&quot;, cls.base_url),
+            token=os.getenv(&quot;GOREST_TOKEN&quot;) or None,
+        )
+
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Où stocker un secret ?</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Emplacement</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Constante dans le code source</td>
+<td><strong>interdit</strong> : visible par quiconque lit le dépôt</td>
+</tr>
+<tr>
+<td>Fichier <code>.env</code> ignoré par Git</td>
+<td>acceptable pour le poste de développement</td>
+</tr>
+<tr>
+<td>Variable d'environnement du serveur ou de la CI</td>
+<td>pratique standard en déploiement</td>
+</tr>
+<tr>
+<td>Gestionnaire de secrets (coffre-fort du cloud, Vault)</td>
+<td>recommandé en production</td>
+</tr>
+<tr>
+<td>Paramètre d'URL (<code>?token=…</code>)</td>
+<td><strong>à proscrire</strong> : le jeton se retrouve dans les journaux des proxys, l'historique du navigateur et les en-têtes <code>Referer</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>GoRest v3 applique cette règle : le jeton ne peut être transmis que par l'en-tête <code>Authorization: Bearer</code>, jamais dans l'URL.</p>
+<p><strong>Versionner l'URL : l'exemple GoRest v2 → v3.</strong> Le chemin porte la version : <code>/public/v3/users</code>. L'ancienne version v2 reste en service, mais chacune de ses réponses porte désormais un en-tête <code>Deprecation</code> (depuis le 1er novembre 2026). Les différences illustrent ce qu'un changement de version casse chez les consommateurs :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>v2</th>
+<th>v3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Identifiants</td>
+<td>entiers (<code>7162384</code>)</td>
+<td>UUID version 7 (chaînes triables par date)</td>
+</tr>
+<tr>
+<td>Liste</td>
+<td>tableau JSON nu, pagination en en-têtes <code>X-Pagination-*</code></td>
+<td>objet <code>{"data": [...], "meta": {...}}</code></td>
+</tr>
+<tr>
+<td>Jeton</td>
+<td>en-tête <code>Authorization: Bearer</code> ou paramètre <code>?access-token=</code></td>
+<td>uniquement <code>Authorization: Bearer</code>, avec portées (<code>users:write</code>)</td>
+</tr>
+<tr>
+<td>Erreurs</td>
+<td>liste de <code>{field, message}</code></td>
+<td>Problem Details (RFC 9457) avec un <code>code</code> stable</td>
+</tr>
+<tr>
+<td>Modification</td>
+<td><code>PUT</code> et <code>PATCH</code></td>
+<td><code>PATCH</code> (JSON Merge Patch), avec <code>ETag</code> et <code>If-Match</code></td>
+</tr>
+<tr>
+<td>Tâches</td>
+<td><code>/todos</code></td>
+<td><code>/tasks</code>, avec priorité et description</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout note"><div class="callout-title">Enseignement pour les jours 2 et 3</div><p>Le jour où un champ change de forme, tous les clients cassent. Une API qu'on publie se versionne dès le premier jour (<code>/v1/…</code>), et toute évolution incompatible passe par une nouvelle version. Ce principe guidera l'API Catalogue.</p></div>
+<h3>2.6 Authentifier les appels : BASIC, Bearer et autres</h3>
+<p>Une API publique en lecture se passe d'identification. Dès qu'elle écrit des données, limite les appels par utilisateur ou expose des données privées, elle exige une <strong>authentification</strong> : prouver <em>qui</em> appelle. L'<strong>autorisation</strong> vient ensuite : décider <em>ce que</em> cet appelant a le droit de faire.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Schéma</th>
+<th>Principe</th>
+<th>Transport</th>
+<th>Usage typique</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>HTTP BASIC</strong> (RFC 7617)</td>
+<td>identifiant et mot de passe encodés en base64</td>
+<td><code>Authorization: Basic &lt;base64&gt;</code></td>
+<td>API internes simples, outils d'administration</td>
+</tr>
+<tr>
+<td><strong>Bearer token</strong> (RFC 6750)</td>
+<td>jeton opaque ou signé, présenté par son porteur</td>
+<td><code>Authorization: Bearer &lt;jeton&gt;</code></td>
+<td>la majorité des API modernes, dont GoRest</td>
+</tr>
+<tr>
+<td><strong>Clé d'API</strong></td>
+<td>clé statique attribuée à une application</td>
+<td>en-tête personnalisé (<code>X-API-Key</code>) selon le fournisseur</td>
+<td>API publiques à quota</td>
+</tr>
+<tr>
+<td><strong>OAuth 2.0</strong></td>
+<td>un serveur d'autorisation délivre des jetons d'accès à durée limitée, au nom d'un utilisateur ou d'une application</td>
+<td><code>Authorization: Bearer &lt;jeton d'accès&gt;</code></td>
+<td>connexion « avec Google », API de grands éditeurs</td>
+</tr>
+<tr>
+<td><strong>JWT</strong></td>
+<td>format de jeton signé qui embarque des informations (identité, expiration)</td>
+<td>généralement en Bearer</td>
+<td>jetons d'accès, SSO</td>
+</tr>
+</tbody>
+</table></div>
+<p><img alt="Flux d'authentification BASIC et Bearer" src="../contenus/flux-authentification.svg" /></p>
+<p><strong>Ce que le schéma montre.</strong></p>
+<ul>
+<li>BASIC suit un <strong>défi–réponse</strong> : le serveur répond <code>401</code> avec <code>WWW-Authenticate: Basic realm="..."</code>, le client rejoue la requête avec ses identifiants. En pratique, un client envoie directement l'en-tête dès le premier appel.</li>
+<li>Bearer suppose un <strong>jeton obtenu au préalable</strong> (console du fournisseur ou serveur d'autorisation). Le terme <em>bearer</em> signifie « porteur » : quiconque possède le jeton est considéré comme son titulaire. Un jeton se protège comme un mot de passe.</li>
+</ul>
+<div class="callout note"><div class="callout-title">Analogie : badge et mot de passe</div><p>BASIC revient à décliner son identité et son mot de passe à chaque passage de porte. Bearer revient à présenter un badge d'accès : le gardien ne demande plus qui vous êtes, il vérifie que le badge est valide et ouvre les portes qu'il autorise. Perdre le badge revient à donner les clés : d'où la possibilité de le révoquer.</p></div>
+<p><strong>BASIC avec <code>requests</code>.</strong></p>
+<div class="code-block"><pre><code class="language-python">import base64
+import requests
+
+# 1. Forme courte : requests fabrique l'en-tête
+r = requests.get(&quot;https://httpbin.org/basic-auth/user/passwd&quot;,
+                 auth=(&quot;user&quot;, &quot;passwd&quot;), timeout=10)
+print(r.status_code, r.json())          # 200 {'authenticated': True, 'user': 'user'}
+
+# 2. Ce qui est réellement envoyé
+print(r.request.headers[&quot;Authorization&quot;])   # Basic dXNlcjpwYXNzd2Q=
+print(base64.b64decode(&quot;dXNlcjpwYXNzd2Q=&quot;).decode())   # user:passwd
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="callout danger"><div class="callout-title">base64 n'est pas du chiffrement</div><p>N'importe qui peut décoder l'en-tête <code>Basic</code> en une ligne, comme ci-dessus. BASIC n'a de sens que sur <strong>HTTPS</strong>. Et jamais <code>verify=False</code> pour « faire passer » un certificat refusé : le correctif consiste à installer la bonne chaîne de certificats, pas à désactiver la vérification.</p></div>
+<p><strong>Bearer avec <code>requests</code>.</strong> Trois niveaux de propreté :</p>
+<div class="code-block"><pre><code class="language-python">import os
+import requests
+
+jeton = os.environ[&quot;GOREST_TOKEN&quot;]
+
+# 1. En-tête à la main
+r = requests.get(URL, headers={&quot;Authorization&quot;: f&quot;Bearer {jeton}&quot;}, timeout=10)
+
+# 2. Objet d'authentification réutilisable
+class BearerAuth(requests.auth.AuthBase):
+    def __init__(self, token: str):
+        self.token = token
+
+    def __call__(self, r: requests.PreparedRequest) -&gt; requests.PreparedRequest:
+        r.headers[&quot;Authorization&quot;] = f&quot;Bearer {self.token}&quot;
+        return r
+
+r = requests.get(URL, auth=BearerAuth(jeton), timeout=10)
+
+# 3. Session : l'authentification s'applique à tous les appels
+s = requests.Session()
+s.auth = BearerAuth(jeton)
+r = s.get(URL, timeout=10)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>401 ou 403 ?</strong> Deux codes à ne pas confondre, car l'action corrective diffère :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Signification</th>
+<th>Action du client</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>401 Unauthorized</code></td>
+<td>non identifié : jeton absent, faux, expiré ou révoqué</td>
+<td>vérifier ou renouveler le jeton</td>
+</tr>
+<tr>
+<td><code>403 Forbidden</code></td>
+<td>identifié, mais <strong>non autorisé</strong> : portée insuffisante, ressource protégée</td>
+<td>demander les droits, changer de ressource</td>
+</tr>
+</tbody>
+</table></div>
+<p>GoRest illustre les deux : sans jeton ou avec un jeton invalide, <code>401</code> avec <code>WWW-Authenticate</code> ; avec un jeton sans la portée demandée, <code>403</code> avec <code>error="insufficient_scope"</code> ; la tentative de modifier une ligne d'exemple (<code>read_only: true</code>) donne aussi <code>403</code>.</p>
+<div class="callout tip"><div class="callout-title">Principe du moindre privilège</div><p>Créer des jetons <strong>distincts par usage</strong>, avec le minimum de portées. Un script de lecture n'a pas besoin de <code>users:write</code>. Si un jeton fuite, l'impact reste limité et la révocation ne coupe qu'un seul usage.</p></div>
+<h3>🛠️ Micro-atelier 3 — Voir l'authentification à l'œuvre (10 min)</h3>
+<ol>
+<li>Appeler <code>https://httpbin.org/basic-auth/user/passwd</code> <strong>sans</strong> <code>auth</code> : relever le code (<code>401</code>) et l'en-tête <code>WWW-Authenticate</code>.</li>
+<li>Rappeler avec <code>auth=("user", "mauvais")</code> : même code ?</li>
+<li>Rappeler avec <code>auth=("user", "passwd")</code> : relever le code et le JSON.</li>
+<li>Appeler <code>POST https://gorest.co.in/public/v3/users</code> <strong>sans</strong> jeton avec un corps JSON valide : relever le code et le corps.</li>
+</ol>
+<p><strong>Résultat attendu</strong> : <code>401</code> aux étapes 1, 2 et 4, <code>200</code> à l'étape 3. Le corps de l'étape 4 est un document d'erreur structuré, que la section suivante apprend à lire.</p>
+<h3>2.7 Lire et classer les erreurs</h3>
+<p>Un appel d'API peut échouer de <strong>deux façons</strong> radicalement différentes :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Catégorie</th>
+<th>Symptôme</th>
+<th>Exceptions <code>requests</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Réseau</strong> : aucune réponse exploitable</td>
+<td>DNS, connexion refusée, coupure, délai dépassé</td>
+<td><code>ConnectionError</code>, <code>ConnectTimeout</code>, <code>ReadTimeout</code> (toutes sous <code>RequestException</code>)</td>
+</tr>
+<tr>
+<td><strong>HTTP</strong> : le serveur a répondu avec un <code>4xx</code> ou <code>5xx</code></td>
+<td>un code de statut et un corps d'erreur</td>
+<td><code>HTTPError</code>, levée seulement si on appelle <code>raise_for_status()</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Par défaut, <code>requests</code> ne lève aucune exception pour un <code>404</code> ou un <code>500</code></strong> : la réponse est retournée normalement. Il faut tester <code>r.ok</code>, <code>r.status_code</code>, ou appeler <code>r.raise_for_status()</code>.</p>
+<div class="code-block"><pre><code class="language-python">try:
+    r = requests.get(URL, timeout=(3.05, 10))
+    r.raise_for_status()
+except requests.exceptions.Timeout:
+    ...   # trop lent : réessayer ou abandonner
+except requests.exceptions.ConnectionError:
+    ...   # réseau indisponible
+except requests.exceptions.HTTPError as exc:
+    print(exc.response.status_code, exc.response.text)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Le format des erreurs : Problem Details (RFC 9457).</strong> Les API récentes standardisent le corps d'erreur (type de média <code>application/problem+json</code>). GoRest v3 l'utilise :</p>
+<div class="code-block"><pre><code class="language-json">{
+  &quot;type&quot;: &quot;https://www.gorest.co.in/docs/api/errors#validation_failed&quot;,
+  &quot;title&quot;: &quot;Unprocessable Content&quot;,
+  &quot;status&quot;: 422,
+  &quot;code&quot;: &quot;validation_failed&quot;,
+  &quot;detail&quot;: &quot;Some fields are not valid.&quot;,
+  &quot;instance&quot;: &quot;/public/v3/users&quot;,
+  &quot;request_id&quot;: &quot;0190a8e4-0000-7000-8000-0000000000aa&quot;,
+  &quot;errors&quot;: [
+    { &quot;pointer&quot;: &quot;/email&quot;, &quot;code&quot;: &quot;taken&quot;, &quot;detail&quot;: &quot;has already been taken&quot; }
+  ]
+}
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Champ</th>
+<th>Sens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>type</code></td>
+<td>URI qui identifie la catégorie d'erreur</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>libellé court, identique pour une même catégorie</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>code HTTP répété dans le corps</td>
+</tr>
+<tr>
+<td><code>detail</code></td>
+<td>explication propre à cette occurrence</td>
+</tr>
+<tr>
+<td><code>instance</code></td>
+<td>ressource concernée par l'erreur</td>
+</tr>
+<tr>
+<td><code>code</code>, <code>errors</code>, <code>request_id</code></td>
+<td><strong>extensions</strong> propres à GoRest : code stable, erreurs par champ (<code>pointer</code> au format JSON Pointer), identifiant à communiquer au support</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout tip"><div class="callout-title">Conserver le <code>request_id</code></div><p>Le consigner dans les journaux de l'application. En cas d'erreur <code>500</code>, le fournisseur demande cet identifiant pour retrouver l'incident dans ses propres traces.</p></div>
+<p><strong>Que faire selon le code ?</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Cause fréquente</th>
+<th>Réaction du client</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>400</code></td>
+<td>paramètre inconnu ou hors plage (<code>page[size]</code> trop grand)</td>
+<td>corriger la requête, ne pas réessayer</td>
+</tr>
+<tr>
+<td><code>401</code></td>
+<td>jeton absent ou invalide</td>
+<td>renouveler le jeton, ne pas réessayer en boucle</td>
+</tr>
+<tr>
+<td><code>403</code></td>
+<td>portée insuffisante, ressource en lecture seule</td>
+<td>changer de jeton ou de ressource</td>
+</tr>
+<tr>
+<td><code>404</code></td>
+<td>ressource inexistante, ou invisible pour ce jeton</td>
+<td>traiter comme « absent »</td>
+</tr>
+<tr>
+<td><code>409</code></td>
+<td>doublon, conflit avec une clé d'idempotence en cours</td>
+<td>consulter le détail avant d'agir</td>
+</tr>
+<tr>
+<td><code>412</code></td>
+<td><code>If-Match</code> ne correspond plus : quelqu'un a modifié la ressource</td>
+<td>relire la ressource, refaire la modification</td>
+</tr>
+<tr>
+<td><code>422</code></td>
+<td>donnée invalide</td>
+<td>afficher les erreurs par champ (<code>errors[].pointer</code>)</td>
+</tr>
+<tr>
+<td><code>429</code></td>
+<td>quota dépassé</td>
+<td>attendre <code>Retry-After</code>, puis réessayer</td>
+</tr>
+<tr>
+<td><code>500</code>, <code>502</code>, <code>503</code>, <code>504</code></td>
+<td>panne côté serveur ou intermédiaire</td>
+<td><strong>réessayer</strong> avec attente croissante (<code>GET</code> seulement par défaut)</td>
+</tr>
+</tbody>
+</table></div>
+<p>La règle qui découle de ce tableau : <strong>ne réessayer que les erreurs transitoires</strong> (<code>429</code>, <code>5xx</code>, délais dépassés). Réessayer un <code>422</code> ou un <code>403</code> ne produira jamais un autre résultat.</p>
+<p><strong>Des exceptions métier pour isoler le reste du code des détails HTTP :</strong></p>
+<div class="code-block"><pre><code class="language-python">class ApiError(Exception):
+    &quot;&quot;&quot;Réponse d'erreur du service (corps Problem Details si présent).&quot;&quot;&quot;
+
+    def __init__(self, status: int, problem: dict | None = None):
+        self.status = status
+        self.problem = problem or {}
+        self.code = self.problem.get(&quot;code&quot;)
+        self.errors = self.problem.get(&quot;errors&quot;, [])
+        self.request_id = self.problem.get(&quot;request_id&quot;)
+        detail = self.problem.get(&quot;detail&quot;) or self.problem.get(&quot;title&quot;) or &quot;erreur HTTP&quot;
+        super().__init__(f&quot;{status} {self.code or ''} {detail}&quot;.strip())
+
+
+class AuthError(ApiError): ...          # 401, 403
+class NotFound(ApiError): ...           # 404
+class ValidationFailed(ApiError): ...   # 422
+class RateLimited(ApiError): ...        # 429
+
+_PAR_STATUT: dict[int, type[ApiError]] = {
+    401: AuthError, 403: AuthError, 404: NotFound,
+    422: ValidationFailed, 429: RateLimited,
+}
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>L'appelant écrit <code>except ValidationFailed as exc: afficher(exc.errors)</code> sans jamais manipuler un code numérique. L'atelier final assemble ces classes dans le module client.</p>
+<h3>2.8 Rendre le client robuste : délais, reprises, quotas</h3>
+<p><strong>1. Délais d'attente (timeouts).</strong> <code>requests</code> accepte un entier ou un <strong>couple</strong> <code>(connexion, lecture)</code> :</p>
+<div class="code-block"><pre><code class="language-python">requests.get(URL, timeout=(3.05, 10))   # 3,05 s pour établir la connexion, 10 s pour attendre les données
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<ul>
+<li>le délai de <strong>connexion</strong> couvre l'établissement de la liaison avec le serveur ;</li>
+<li>le délai de <strong>lecture</strong> couvre l'attente entre deux octets reçus, pas la durée totale de la réponse.</li>
+</ul>
+<div class="callout warn"><div class="callout-title"><code>timeout</code> n'est pas un délai global</div><p>Un serveur qui envoie un octet toutes les 9 secondes ne déclenche jamais un délai de lecture de 10 secondes. Pour borner la durée totale, il faut un mécanisme externe (<code>concurrent.futures</code>, <code>asyncio.timeout</code>, ou un délai côté orchestrateur).</p></div>
+<p><strong>2. Reprises automatiques avec attente croissante (backoff).</strong> <code>requests</code> délègue à <code>urllib3</code> :</p>
+<div class="code-block"><pre><code class="language-python">from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+retry = Retry(
+    total=3,                                          # 3 reprises au maximum
+    backoff_factor=0.5,    # attente croissante entre les reprises: b * 2 ** (k-1) k: tentative (1, 2, 3 ...)
+    backoff_jitter=0.5,   # fraction aléatoire pour éviter l'effet de troupeau en cas de multi threading , async ...
+    status_forcelist=(429, 500, 502, 503, 504),       # codes jugés transitoires
+    allowed_methods=frozenset({&quot;GET&quot;, &quot;HEAD&quot;, &quot;OPTIONS&quot;}),   # méthodes idempotentes uniquement
+    respect_retry_after_header=True,                  # honore l'entête Retry-After: xs donné par le serveur qui prends le pas de calcul du backoff automatique
+    raise_on_status=False,                            # rend la dernière réponse en erreur (4XX 5XX) au lieu de lever MaxRetryError
+)
+
+session = requests.Session()
+session.mount(&quot;https://&quot;, HTTPAdapter(max_retries=retry))
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Les points de vigilance :</p>
+<ul>
+<li><code>allowed_methods</code> exclut <code>POST</code> par défaut, pour la raison vue en section 1.5 ;</li>
+<li><code>raise_on_status=False</code> laisse la <strong>dernière réponse</strong> (par exemple le <code>503</code> final) remonter au code appelant, qui la convertit en exception métier ; sans ce réglage, <code>requests</code> lève <code>RetryError</code>, plus pauvre en informations ;</li>
+<li>l'attente croissante évite que tous les clients retombent en même temps sur un serveur qui se rétablit (effet de troupeau).</li>
+</ul>
+<p>Pour <strong>voir</strong> les reprises dans la console :</p>
+<div class="code-block"><pre><code class="language-python">import logging
+logging.basicConfig(level=logging.DEBUG)   # urllib3 journalise « Incremented Retry for ... »
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="callout warn"><div class="callout-title">Ne pas journaliser les en-têtes sensibles</div><p>Les journaux de niveau <code>DEBUG</code> de certaines bibliothèques (en particulier <code>http.client</code> avec <code>debuglevel = 1</code>) affichent les en-têtes complets, <code>Authorization</code> compris. Ne jamais activer ces journaux sur un environnement qui conserve les logs.</p></div>
+<p><strong>3. Quotas et limitation de débit (rate limiting).</strong> Les fournisseurs plafonnent le nombre d'appels. Pour GoRest :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Limite documentée</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>sans jeton</td>
+<td>120 appels par minute et par adresse IP</td>
+</tr>
+<tr>
+<td>avec jeton</td>
+<td>300 appels par minute par défaut, réglable de 1 à 600 sur la page des jetons</td>
+</tr>
+</tbody>
+</table></div>
+<p>Chaque réponse porte les en-têtes <code>RateLimit-Policy</code> (la limite et sa fenêtre, par exemple <code>"token";q=300;w=60</code>) et <code>RateLimit</code> (appels restants et secondes avant réinitialisation). Au-delà de la limite : <code>429</code> avec <code>Retry-After</code>.</p>
+<div class="code-block"><pre><code class="language-python">r = requests.get(URL, timeout=10)
+print(r.headers.get(&quot;RateLimit-Policy&quot;))
+print(r.headers.get(&quot;RateLimit&quot;))
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Un client bien élevé <strong>lit ces en-têtes et ralentit avant d'être bloqué</strong>. À défaut, la combinaison <code>429</code> + <code>Retry-After</code> + <code>respect_retry_after_header=True</code> fournit un filet de sécurité.</p>
+<p><strong>4. Reprendre un <code>POST</code> sans doublon : l'idempotence par clé.</strong> L'en-tête <code>Idempotency-Key</code> accepté par GoRest transforme un <code>POST</code> en opération rejouable pendant 24 heures : une seconde requête avec la <strong>même clé, le même chemin et le même corps</strong> renvoie la première réponse (en-tête <code>Idempotent-Replayed: true</code>) sans créer de seconde ressource.</p>
+<div class="code-block"><pre><code class="language-python">import uuid
+
+cle = str(uuid.uuid4())     # générée UNE fois par opération, pas par tentative
+r = session.post(f&quot;{BASE}/users&quot;, json=donnees,
+                 headers={&quot;Idempotency-Key&quot;: cle}, timeout=10)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>La même clé avec un corps différent est refusée (<code>422</code>, code <code>idempotency_key_mismatch</code>).</p>
+<h3>2.9 Parcourir de grandes collections : la pagination</h3>
+<p>Une collection de dizaines de milliers d'éléments ne se renvoie pas en une réponse. L'API la découpe en <strong>pages</strong>. GoRest renvoie 25 éléments par défaut, jusqu'à 100 avec <code>page[size]</code>.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Technique</th>
+<th>Principe</th>
+<th>Avantages</th>
+<th>Limites</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Par décalage</strong> (<code>page[number]</code>)</td>
+<td>« donne-moi la page 7 »</td>
+<td>accès direct à une page, total simple</td>
+<td>les pages dérivent si des éléments sont ajoutés ou supprimés pendant le parcours ; borné à 10 000 pages chez GoRest</td>
+</tr>
+<tr>
+<td><strong>Par curseur</strong> (<code>page[after]</code>)</td>
+<td>« donne-moi la suite après ce repère »</td>
+<td>stable pendant les écritures, performant</td>
+<td>pas d'accès direct à la page N, curseur <strong>opaque</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><img alt="Pagination par curseur" src="../contenus/pagination-curseur.svg" /></p>
+<p>GoRest renvoie la pagination par curseur dans l'objet <code>meta</code> du corps <strong>et</strong> dans l'en-tête <code>Link</code> (RFC 8288) :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Élément</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>meta.has_more</code></td>
+<td><code>true</code> s'il reste une page</td>
+</tr>
+<tr>
+<td><code>meta.next_cursor</code></td>
+<td>valeur à renvoyer dans <code>page[after]</code> ; <code>null</code> sur la dernière page</td>
+</tr>
+<tr>
+<td><code>meta.total</code></td>
+<td>nombre total, uniquement avec <code>page[count]=true</code> (la requête est alors plus coûteuse)</td>
+</tr>
+<tr>
+<td><code>Link</code></td>
+<td>URL <code>rel="next"</code>, <code>"prev"</code>, <code>"first"</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Un <strong>générateur</strong> Python se prête bien au parcours : il produit les éléments au fil de l'eau, sans charger toute la collection en mémoire.</p>
+<div class="code-block"><pre><code class="language-python">from collections.abc import Iterator
+from typing import Any
+
+def iterer(session: requests.Session, url: str, params: dict | None = None,
+           taille: int = 100) -&gt; Iterator[dict[str, Any]]:
+    params = {**(params or {}), &quot;page[size]&quot;: taille}
+    while True:
+        r = session.get(url, params=params, timeout=(3.05, 10))
+        r.raise_for_status()
+        corps = r.json()
+        yield from corps[&quot;data&quot;]
+        if not corps[&quot;meta&quot;][&quot;has_more&quot;]:
+            return
+        params[&quot;page[after]&quot;] = corps[&quot;meta&quot;][&quot;next_cursor&quot;]
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Deux règles à retenir :</p>
+<ul>
+<li>le curseur <strong>n'est valable qu'avec la même requête</strong> : les filtres et le tri doivent rester identiques d'une page à l'autre (le dictionnaire <code>params</code> est conservé et seul <code>page[after]</code> change) ;</li>
+<li>le curseur est <strong>opaque</strong> : on le recopie tel quel, on ne le décode pas, on ne le fabrique pas.</li>
+</ul>
+<p><code>requests</code> décode aussi l'en-tête <code>Link</code> : <code>r.links["next"]["url"]</code> donne directement l'URL de la page suivante, utile quand l'API ne place pas le curseur dans le corps.</p>
+<div class="code-block"><pre><code class="language-python">from itertools import islice
+
+premiers = list(islice(iterer(session, f&quot;{BASE}/users&quot;), 250))   # plafonner un parcours
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<h3>🛠️ Micro-atelier 4 — Compter et parcourir (10 min)</h3>
+<ol>
+<li>Appeler <code>GET /users?page[size]=1&amp;page[count]=true</code> et lire <code>meta.total</code>.</li>
+<li>Parcourir <strong>toute</strong> la liste des utilisateurs actifs avec <code>iterer(...)</code> et <code>{"filter[status]": "active"}</code> ; compter les éléments obtenus.</li>
+<li>Comparer le décompte avec <code>meta.total</code> obtenu avec le même filtre. Expliquer un éventuel écart (données modifiées entre les deux appels, visibilité des lignes d'exemple et des lignes personnelles).</li>
+<li>Plafonner le parcours à 250 éléments avec <code>islice</code>.</li>
+</ol>
+<h3>2.10 Écrire des données : créer, modifier, supprimer</h3>
+<p>Les écritures exigent un jeton portant la portée d'écriture de la ressource (<code>users:write</code> pour les utilisateurs).</p>
+<div class="code-block"><pre><code class="language-python">session = requests.Session()
+session.auth = BearerAuth(jeton)
+
+# Créer : POST, 201 Created, URL de la nouvelle ressource dans Location
+r = session.post(f&quot;{BASE}/users&quot;,
+                 json={&quot;name&quot;: &quot;Stagiaire Test&quot;, &quot;email&quot;: &quot;stagiaire.test@example.com&quot;},
+                 timeout=10)
+print(r.status_code, r.headers.get(&quot;Location&quot;))
+user = r.json()
+
+# Modifier partiellement : PATCH (JSON Merge Patch), 200 OK
+r = session.patch(f&quot;{BASE}/users/{user['id']}&quot;, json={&quot;status&quot;: &quot;inactive&quot;}, timeout=10)
+
+# Supprimer : DELETE, 204 No Content (corps vide)
+r = session.delete(f&quot;{BASE}/users/{user['id']}&quot;, timeout=10)
+print(r.status_code)     # 204
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong><code>PUT</code> ou <code>PATCH</code> ?</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Méthode</th>
+<th>Sémantique</th>
+<th>Conséquence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PUT</code></td>
+<td><strong>remplace</strong> la ressource entière</td>
+<td>les champs omis sont perdus</td>
+</tr>
+<tr>
+<td><code>PATCH</code> avec JSON Merge Patch (RFC 7396)</td>
+<td>n'applique que les champs présents dans le corps</td>
+<td>les champs omis restent inchangés ; <code>null</code> efface un champ</td>
+</tr>
+</tbody>
+</table></div>
+<p>GoRest v3 propose uniquement <code>PATCH</code>. Le corps envoyé se limite aux champs à modifier.</p>
+<p><strong>Éviter les écrasements : <code>ETag</code> et <code>If-Match</code> (verrouillage optimiste).</strong> Quand deux clients modifient la même ressource, le dernier écrase le premier à son insu. L'API retourne un <code>ETag</code> (empreinte de la version) ; le client le renvoie dans <code>If-Match</code>. Si la ressource a changé entre-temps, le serveur répond <code>412 Precondition Failed</code>.</p>
+<div class="code-block"><pre><code class="language-python">r = session.get(f&quot;{BASE}/users/{user['id']}&quot;, timeout=10)
+etag = r.headers[&quot;ETag&quot;]                         # version lue
+
+r = session.patch(f&quot;{BASE}/users/{user['id']}&quot;,
+                  json={&quot;name&quot;: &quot;Nouveau nom&quot;},
+                  headers={&quot;If-Match&quot;: etag}, timeout=10)
+# 200 si la version n'a pas changé, 412 sinon
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Le fournisseur précise que l'<code>ETag</code> à utiliser provient d'une lecture <strong>sans</strong> <code>include</code>, ou de la dernière écriture, et qu'un <code>ETag</code> faible ne correspond jamais.</p>
+<p><strong>Réduire le trafic : <code>Prefer: return=minimal</code>.</strong> Cet en-tête (RFC 7240) demande une réponse sans corps après une modification. Le comportement par défaut est <code>return=representation</code>, qui renvoie l'élément complet.</p>
+<h3>2.11 Aller plus loin avec <code>httpx</code> : client unifié et appels concurrents</h3>
+<p><code>httpx</code> reprend la philosophie de <code>requests</code> et ajoute le support natif de l'asynchrone.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Point</th>
+<th><code>requests</code></th>
+<th><code>httpx</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Délai par défaut</td>
+<td><strong>aucun</strong></td>
+<td>5 secondes</td>
+</tr>
+<tr>
+<td>Redirections</td>
+<td>suivies par défaut</td>
+<td><strong>non</strong> suivies par défaut (<code>follow_redirects=True</code> pour les activer)</td>
+</tr>
+<tr>
+<td>URL de base</td>
+<td>à écrire soi-même</td>
+<td><code>base_url=</code> natif</td>
+</tr>
+<tr>
+<td>Asynchrone</td>
+<td>non</td>
+<td>oui (<code>AsyncClient</code>)</td>
+</tr>
+<tr>
+<td>HTTP/2</td>
+<td>non</td>
+<td>en option</td>
+</tr>
+<tr>
+<td>Reprises</td>
+<td><code>Retry</code> d'<code>urllib3</code> via un adaptateur</td>
+<td><code>HTTPTransport(retries=n)</code> : uniquement les erreurs de <strong>connexion</strong>, pas les codes <code>5xx</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Client synchrone :</strong></p>
+<div class="code-block"><pre><code class="language-python">import httpx
+
+with httpx.Client(base_url=&quot;https://gorest.co.in/public/v3&quot;,
+                  headers={&quot;Accept&quot;: &quot;application/json&quot;},
+                  timeout=10.0) as client:
+    r = client.get(&quot;/users&quot;, params={&quot;page[size]&quot;: 3})
+    r.raise_for_status()
+    print(r.json()[&quot;data&quot;][0][&quot;name&quot;])
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Appels concurrents.</strong> Pour interroger plusieurs ressources indépendantes, <code>asyncio.gather</code> lance les appels en parallèle. Un <code>Semaphore</code> limite la concurrence : sans lui, un <code>gather</code> sur 500 appels dépasse le quota en quelques secondes.</p>
+<div class="code-block"><pre><code class="language-python">import asyncio
+import httpx
+
+BASE = &quot;https://gorest.co.in/public/v3&quot;
+
+
+async def compter(client: httpx.AsyncClient, ressource: str) -&gt; tuple[str, int | None]:
+    r = await client.get(f&quot;/{ressource}&quot;, params={&quot;page[size]&quot;: 1, &quot;page[count]&quot;: &quot;true&quot;})
+    r.raise_for_status()
+    return ressource, r.json()[&quot;meta&quot;][&quot;total&quot;]
+
+
+async def main() -&gt; None:
+    ressources = (&quot;users&quot;, &quot;posts&quot;, &quot;comments&quot;, &quot;tasks&quot;)
+
+    async with httpx.AsyncClient(base_url=BASE, timeout=10.0) as client:
+        resultats = await asyncio.gather(*(compter(client, n) for n in ressources))
+
+    for nom, total in resultats:
+        print(f&quot;{nom:10} {total}&quot;)
+
+
+asyncio.run(main())
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Authentification avec <code>httpx</code> :</strong> <code>auth=httpx.BasicAuth("user", "passwd")</code> pour BASIC ; pour Bearer, un en-tête par défaut sur le client (<code>headers={"Authorization": f"Bearer {jeton}"}</code>).</p>
+<div class="callout tip"><div class="callout-title">Choisir sans dogme</div><p>Un script ou un client de test (le cas du fil rouge) : <code>requests</code> suffit et se lit partout. Un service qui fait des centaines d'appels concurrents ou qui est lui-même asynchrone (FastAPI, jour 2) : <code>httpx</code>.</p></div>
+<hr />
+</div>
+
+<div id="tab-b3-bloc-2-atelier-105-min" class="tab-content">
+<h3>🛠️ Atelier 1 — Interroger des services web ouverts et avec authentification</h3>
+<p><strong>Contexte.</strong> L'équipe pédagogique veut un <strong>client Python réutilisable</strong> pour consulter et alimenter un service tiers de test. Ce client deviendra, les jours 2 et 3, l'outil de vérification de l'API Catalogue. L'atelier se déroule en quatre étapes progressives. Chaque étape se termine par un point de contrôle avec le formateur.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Étape</th>
+<th>Contenu</th>
+<th>Durée</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Explorer GoRest sans jeton avec <code>requests</code></td>
+<td>20 min</td>
+</tr>
+<tr>
+<td>2</td>
+<td>S'authentifier en BASIC</td>
+<td>10 min</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Écrire le module <code>catalogue_client</code> (session, jeton, reprises, erreurs, pagination)</td>
+<td>35 min</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Scénario d'écriture authentifié (création, doublon, <code>ETag</code>, droits, suppression)</td>
+<td>30 min</td>
+</tr>
+<tr>
+<td>—</td>
+<td>Point de contrôle, extensions pour les plus rapides</td>
+<td>10 min</td>
+</tr>
+</tbody>
+</table></div>
+<p><img alt="Architecture du fil rouge" src="../contenus/fil-rouge-architecture.svg" /></p>
+<h4>Étape 1 — Explorer sans authentification (20 min)</h4>
+<p><strong>Consignes.</strong> Dans <code>explorer.py</code>, avec <code>requests</code> uniquement :</p>
+<ol>
+<li>afficher les 10 premiers utilisateurs <strong>actifs</strong>, triés par nom (nom et e-mail) ;</li>
+<li>récupérer <strong>un</strong> article avec son auteur et ses commentaires en une seule requête (<code>include</code>) ; afficher le titre, le nom de l'auteur et le nombre de commentaires ;</li>
+<li>lister les tâches <strong>urgentes</strong> dont le statut est <code>todo</code> ou <code>in_progress</code> ;</li>
+<li>demander un utilisateur inexistant : afficher le code de statut et les 200 premiers caractères du corps ;</li>
+<li>demander <code>page[size]=1000</code> : relever le code de statut et le comparer à la référence de l'API ;</li>
+<li>provoquer volontairement un délai d'attente dépassé avec <code>/http/delay/3000</code> et <code>timeout=1</code>, et l'attraper proprement.</li>
+</ol>
+<p><strong>Corrigé formateur — <code>explorer.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">???
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Point de contrôle</strong></p>
+<ul>
+<li>[ ] les six sorties s'affichent sans trace d'exception non gérée ;</li>
+<li>[ ] le stagiaire explique la différence entre l'échec de l'étape 4 (réponse HTTP) et celui de l'étape 6 (aucune réponse) ;</li>
+<li>[ ] il sait où trouver, dans la référence, le code attendu pour l'étape 5.</li>
+</ul>
+<h4>Étape 2 — S'authentifier en BASIC (10 min)</h4>
+<p>GoRest n'implémente pas BASIC : on utilise le service de test <code>httpbin.org</code>, dont la route <code>/basic-auth/{identifiant}/{mot_de_passe}</code> n'accepte que le couple indiqué dans son propre chemin.</p>
+<p><strong>Consignes.</strong> Dans <code>basic_auth.py</code>, écrire une fonction <code>tester(identifiant, mot_de_passe, essai)</code> qui renvoie le code de statut de l'appel, puis afficher les résultats d'un bon et d'un mauvais mot de passe.</p>
+<div class="code-block"><pre><code class="language-python">????
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Question de réflexion.</strong> Le mot de passe figure ici dans l'URL, uniquement parce que <code>httpbin</code> l'exige pour son rôle de bac à sable. Pourquoi ne faut-il <strong>jamais</strong> reproduire cette pratique avec un vrai secret ? <em>(Réponse : l'URL est journalisée par les proxys, les serveurs et l'historique du navigateur.)</em></p>
+<div class="callout tip"><div class="callout-title">Si <code>httpbin.org</code> est indisponible</div><p>Le service est public et peut être saturé. Le formateur remplace cette étape par une démonstration commentée de l'en-tête <code>Authorization: Basic …</code> (<code>r.request.headers</code>) et reporte l'authentification BASIC « pour de vrai » au jour 2, où les stagiaires l'implémentent eux-mêmes côté serveur avec FastAPI.</p></div>
+<h4>Étape 3 — Écrire le module <code>catalogue_client</code> (35 min)</h4>
+<p><strong>Cahier des charges.</strong> Le module expose une classe <code>GoRestClient</code> qui :</p>
+<ol>
+<li>lit sa configuration (URL de base, jeton, délais) dans <code>Settings.from_env()</code> (section 2.5) ;</li>
+<li>utilise <strong>une</strong> <code>requests.Session</code> avec <code>Accept: application/json</code> et un <code>User-Agent</code> identifiable ;</li>
+<li>ajoute <code>Authorization: Bearer …</code> <strong>seulement si</strong> un jeton est configuré ;</li>
+<li>applique un <code>timeout</code> par défaut à chaque appel ;</li>
+<li>rejoue automatiquement les <code>GET</code> en cas de <code>429</code> ou <code>5xx</code>, en respectant <code>Retry-After</code> ;</li>
+<li>convertit toute réponse <code>&gt;= 400</code> en <strong>exception métier</strong> typée, avec le corps Problem Details ;</li>
+<li>offre <code>lister</code> (générateur paginé), <code>lire</code> (élément et <code>ETag</code>), <code>creer</code> (avec <code>Idempotency-Key</code>), <code>modifier</code> (avec <code>If-Match</code> facultatif) et <code>supprimer</code>.</li>
+</ol>
+<p><strong>Corrigé formateur — <code>catalogue_client/gorest.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">????
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-python"># catalogue_client/__init__.py
+from .config import Settings
+from .gorest import (ApiError, AuthError, Conflit, GoRestClient, NotFound,
+                     RateLimited, ValidationFailed)
+
+__all__ = [&quot;ApiError&quot;, &quot;AuthError&quot;, &quot;Conflit&quot;, &quot;GoRestClient&quot;, &quot;NotFound&quot;,
+           &quot;RateLimited&quot;, &quot;Settings&quot;, &quot;ValidationFailed&quot;]
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Vérification rapide</strong> (dans un terminal, venv actif, à la racine du dépôt) :</p>
+<div class="code-block"><pre><code class="language-bash">python -c &quot;from catalogue_client import GoRestClient; c = GoRestClient(); print(next(c.lister('users', taille=3))['name'])&quot;
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="callout note"><div class="callout-title">Pourquoi <code>raise_on_status=False</code> et <code>ok</code> ?</div><p>Après trois reprises infructueuses, <code>urllib3</code> lèverait <code>MaxRetryError</code> ; <code>requests</code> la transformerait en <code>RetryError</code>, sans corps ni code d'erreur exploitable. Avec <code>raise_on_status=False</code>, la <strong>dernière réponse</strong> (un <code>503</code>, par exemple) est rendue à <code>request()</code>, qui la convertit en <code>ApiError</code> complète. Les deux réglages vont ensemble.</p></div>
+<p><strong>Point de contrôle</strong></p>
+<ul>
+<li>[ ] le module s'importe sans exception, avec et sans <code>GOREST_TOKEN</code> ;</li>
+<li>[ ] <code>repr(Settings.from_env())</code> n'affiche pas le jeton ;</li>
+<li>[ ] le stagiaire explique pourquoi <code>lister</code> est un générateur et ce qui se passerait sur une collection de 2 millions de lignes avec une liste ;</li>
+<li>[ ] il justifie <code>allowed_methods</code> : pourquoi <code>POST</code> n'est-il pas rejoué ?</li>
+</ul>
+<h4>Étape 4 — Scénario d'écriture authentifié (30 min)</h4>
+<p><strong>Consignes.</strong> Dans <code>main.py</code>, avec <code>GoRestClient</code> :</p>
+<ol>
+<li>tenter une création <strong>sans jeton</strong> et constater l'exception ;</li>
+<li>créer un utilisateur avec un e-mail unique ;</li>
+<li>tenter de créer le <strong>même e-mail</strong> une seconde fois et afficher les erreurs par champ ;</li>
+<li>relire l'utilisateur pour obtenir son <code>ETag</code>, le modifier avec <code>If-Match</code>, puis rejouer <strong>la même modification avec l'ancien <code>ETag</code></strong> ;</li>
+<li>tenter de modifier une ligne d'exemple (<code>read_only: true</code>) ;</li>
+<li>supprimer l'utilisateur et vérifier qu'une relecture échoue.</li>
+</ol>
+<p><strong>Corrigé formateur — <code>main.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">???
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Résultats attendus</strong> d'après la référence GoRest :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Étape</th>
+<th>Exception</th>
+<th>Statut documenté</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>AuthError</code></td>
+<td><code>401</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>—</td>
+<td><code>201</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>ApiError</code> (ou <code>ValidationFailed</code>, <code>Conflit</code>)</td>
+<td><code>422</code> dans l'exemple de la référence, <code>409</code> pour un doublon : <strong>constater le code réel</strong></td>
+</tr>
+<tr>
+<td>4a</td>
+<td>—</td>
+<td><code>200</code></td>
+</tr>
+<tr>
+<td>4b</td>
+<td><code>Conflit</code></td>
+<td><code>412</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>AuthError</code></td>
+<td><code>403</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>NotFound</code></td>
+<td><code>404</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Points de contrôle</strong></p>
+<ul>
+<li>[ ] chaque étape produit le résultat attendu, ou le stagiaire explique l'écart (jeton sans la portée <code>users:write</code>, données réinitialisées toutes les 3 heures) ;</li>
+<li>[ ] aucun jeton n'apparaît dans le terminal, dans le code ni dans <code>git status</code> ;</li>
+<li>[ ] le stagiaire sait dire quelles erreurs justifient une <strong>reprise</strong> (aucune de celles de ce scénario) et lesquelles une <strong>correction</strong> (toutes).</li>
+</ul>
+<div class="callout warn"><div class="callout-title">Pièges fréquents dans l'atelier</div><p><code>401</code> sur toutes les écritures : variable <code>GOREST_TOKEN</code> absente (fichier <code>.env</code> placé hors du dossier de travail ?) ou jeton recopié avec un espace. <code>403</code> sur une écriture qui devrait passer : portée <code>users:write</code> non cochée à la création du jeton. <code>ModuleNotFoundError: catalogue_client</code> : le script est lancé depuis un autre dossier que la racine du dépôt. <code>429</code> : trop d'appels en peu de temps, relire <code>RateLimit</code> et patienter.</p></div>
+<h4>Extensions pour les plus rapides</h4>
+<ol>
+<li><strong>Cache conditionnel.</strong> Dans <code>lire</code>, accepter un <code>etag</code> en entrée, l'envoyer en <code>If-None-Match</code> et gérer le <code>304 Not Modified</code> en renvoyant la copie locale.</li>
+<li><strong>Tests sans réseau.</strong> Avec <code>pytest</code> et la bibliothèque <code>responses</code> (<code>pip install responses</code>), écrire un test qui simule un <code>422</code> et vérifie que <code>creer</code> lève <code>ValidationFailed</code> avec le bon <code>errors</code>.</li>
+<li><strong>Version asynchrone.</strong> Réécrire <code>lister</code> avec <code>httpx.AsyncClient</code> et comparer le temps de parcours de trois ressources avec <code>asyncio.gather</code> (section 2.11).</li>
+<li><strong>Journal d'appels.</strong> Ajouter un <code>logging</code> qui trace la méthode, le chemin, le statut et la durée, <strong>sans</strong> l'en-tête <code>Authorization</code>.</li>
+</ol>
+<hr />
+</div>
+
+<div id="tab-synthese-de-fin-de-journee" class="tab-content">
+<h3>Ce qui est en place</h3>
+<div class="code-block"><pre><code>api-catalogue/
+├── .env                      # GOREST_TOKEN (non versionné)
+├── .gitignore
+├── requirements.txt
+├── catalogue_client/
+│   ├── __init__.py
+│   ├── config.py             # Settings.from_env()
+│   └── gorest.py             # GoRestClient, exceptions, BearerAuth
+├── explorer.py               # lectures sans authentification
+├── basic_auth.py             # BASIC sur httpbin
+└── main.py       # scénario Bearer + ETag
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<h3>Les réflexes installés</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Réflexe</th>
+<th>Pourquoi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lire la référence de l'API <strong>avant</strong> d'écrire du code</td>
+<td>champs obligatoires, codes d'erreur et quotas y sont documentés</td>
+</tr>
+<tr>
+<td><code>timeout</code> sur <strong>tous</strong> les appels</td>
+<td><code>requests</code> n'en a aucun par défaut</td>
+</tr>
+<tr>
+<td>Un jeton dans <code>.env</code> ou une variable d'environnement, jamais dans le code ni l'URL</td>
+<td>un secret commité ou journalisé est compromis</td>
+</tr>
+<tr>
+<td>Une <code>Session</code> par client</td>
+<td>réutilise les connexions, centralise authentification et reprises</td>
+</tr>
+<tr>
+<td>Reprendre seulement les erreurs transitoires et les méthodes idempotentes</td>
+<td>un <code>422</code> ne se corrige pas en réessayant, un <code>POST</code> rejoué crée des doublons</td>
+</tr>
+<tr>
+<td><code>Idempotency-Key</code> sur les créations</td>
+<td>rend un <code>POST</code> rejouable</td>
+</tr>
+<tr>
+<td>Transformer les réponses d'erreur en exceptions métier</td>
+<td>le code appelant ne manipule plus de codes numériques</td>
+</tr>
+<tr>
+<td>Parcourir avec un générateur et le curseur fourni</td>
+<td>mémoire constante, résultats cohérents</td>
+</tr>
+<tr>
+<td>Surveiller <code>RateLimit</code>, <code>Retry-After</code>, <code>Deprecation</code></td>
+<td>un client qui s'adapte évite les blocages et les mauvaises surprises de version</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Pièges vus aujourd'hui (à récapituler oralement)</h3>
+<ol>
+<li><code>curl</code> est un alias de <code>Invoke-WebRequest</code> dans Windows PowerShell : utiliser <code>curl.exe</code>, avec <code>-g</code> quand l'URL contient des crochets.</li>
+<li><code>requests</code> ne lève pas d'exception sur un <code>404</code> ou un <code>500</code> : tester <code>r.ok</code> ou appeler <code>raise_for_status()</code>.</li>
+<li>Pas de <code>timeout</code>, pas de garantie de fin : un appel peut bloquer indéfiniment.</li>
+<li><code>timeout</code> borne l'attente entre deux octets, pas la durée totale d'une réponse.</li>
+<li><code>Retry</code> sans <code>raise_on_status=False</code> remplace l'erreur HTTP exploitable par une <code>RetryError</code> opaque.</li>
+<li>Un <code>POST</code> n'est pas idempotent : sans clé d'idempotence, une reprise automatique peut créer un doublon.</li>
+<li><code>base64</code> n'est pas un chiffrement : BASIC sans HTTPS expose le mot de passe, et <code>verify=False</code> désactive la protection contre l'usurpation de serveur.</li>
+<li>Un curseur de pagination n'est valable qu'avec la <strong>même</strong> requête, et ne se fabrique pas.</li>
+<li><code>401</code> (identité inconnue) et <code>403</code> (identité connue, droit manquant) appellent des corrections différentes.</li>
+<li>Une API évolue : v2 reste en ligne mais dépréciée. Une version incompatible se publie sous un nouveau chemin, jamais en remplaçant l'ancien.</li>
+</ol>
+<h3>Aperçu du jour 2 — blocs 3 et 4</h3>
+<p>Aujourd'hui, les stagiaires étaient <strong>consommateurs</strong>. Demain, ils deviennent <strong>fournisseurs</strong> :</p>
+<ul>
+<li><strong>Bloc 3 — Implémenter un service web REST</strong> : rappels sur l'architecture REST, composantes et méthodes d'appel, sérialisation des données, conseils pour concevoir des points d'entrée (<code>/formations</code>, <code>/sessions</code>) ;</li>
+<li><strong>Bloc 4 — Implémenter un service web avec Python</strong> : bibliothèques d'API REST (FastAPI, Flask, Sanic), déclaration de routes et de méthodes, paramètres, validation et gestion des erreurs, authentification BASIC et Bearer ;</li>
+<li><strong>Atelier</strong> : créer un service web avec FastAPI.</li>
+</ul>
+<p><code>catalogue_client</code> servira de client de test : chaque route écrite demain sera vérifiée avec le même module, après avoir simplement changé <code>GOREST_BASE_URL</code>.</p>
+<p><strong>À préparer pour demain</strong> : conserver le dépôt <code>api-catalogue/</code> tel quel (il est commité, sans le fichier <code>.env</code>) ; le formateur indique en début de journée la commande d'installation de FastAPI et de son serveur d'exécution.</p>
+<hr />
+</div>
+
+<div id="tab-annexe-commandes-du-jour-cheat-sheet" class="tab-content">
+<div class="code-block"><pre><code class="language-bash"># --- curl.exe (Windows) ou curl (Linux, macOS) ---------------------------
+curl.exe -g &quot;https://gorest.co.in/public/v3/users?page[size]=3&quot;          # liste
+curl.exe -g -i &quot;https://gorest.co.in/public/v3/users?page[size]=3&quot;       # avec en-têtes de réponse
+curl.exe -g -v &quot;https://gorest.co.in/public/v3/users?page[size]=3&quot;       # requête et réponse complètes
+curl.exe &quot;https://gorest.co.in/public/v3/users/&lt;id&gt;&quot;                     # un élément
+curl.exe -g &quot;https://gorest.co.in/public/v3/users?filter[status]=active&amp;sort=name&amp;fields[users]=id,name&quot;
+curl.exe -g &quot;https://gorest.co.in/public/v3/posts?include=user,comments&amp;page[size]=2&quot;
+curl.exe -g &quot;https://gorest.co.in/public/v3/tasks?filter[priority]=urgent&amp;filter[status]=todo,in_progress&quot;
+
+# Écriture (jeton requis) — syntaxe bash ; en PowerShell, remplacer \ par ` et $GOREST_TOKEN par $env:GOREST_TOKEN
+curl.exe -X POST &quot;https://gorest.co.in/public/v3/users&quot; \
+  -H &quot;Authorization: Bearer $GOREST_TOKEN&quot; -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;name&quot;:&quot;Stagiaire Test&quot;,&quot;email&quot;:&quot;stagiaire.test@example.com&quot;}'
+
+# Outils de test GoRest
+curl.exe -i &quot;https://gorest.co.in/public/v3/http/status/429&quot;
+curl.exe &quot;https://gorest.co.in/public/v3/http/delay/2000&quot;
+curl.exe &quot;https://gorest.co.in/public/v3/http/echo&quot;
+
+# BASIC sur httpbin
+curl.exe -u user:passwd &quot;https://httpbin.org/basic-auth/user/passwd&quot;
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-python"># --- requests : mémo -----------------------------------------------------
+r = requests.get(url, params={...}, headers={...}, timeout=(3.05, 10))
+r = requests.post(url, json={...}, timeout=10)
+r.status_code, r.ok, r.headers[&quot;Content-Type&quot;], r.json(), r.text, r.url, r.elapsed
+r.raise_for_status()                   # HTTPError si 4xx ou 5xx
+r.links[&quot;next&quot;][&quot;url&quot;]                 # en-tête Link décodé
+requests.get(url, auth=(&quot;user&quot;, &quot;mdp&quot;), timeout=10)                  # BASIC
+requests.get(url, headers={&quot;Authorization&quot;: f&quot;Bearer {jeton}&quot;}, timeout=10)   # Bearer
+
+# Session avec reprises
+s = requests.Session()
+s.mount(&quot;https://&quot;, HTTPAdapter(max_retries=Retry(total=3, backoff_factor=0.5,
+        status_forcelist=(429, 500, 502, 503, 504), raise_on_status=False)))
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Code</th>
+<th>À retenir</th>
+<th>Réessayer ?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>200</code>, <code>201</code>, <code>204</code></td>
+<td>succès (lecture ou modification, création, suppression)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>304</code></td>
+<td>copie locale toujours valide</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>400</code></td>
+<td>requête mal formée ou hors plage</td>
+<td>non</td>
+</tr>
+<tr>
+<td><code>401</code></td>
+<td>jeton absent ou invalide</td>
+<td>non, renouveler le jeton</td>
+</tr>
+<tr>
+<td><code>403</code></td>
+<td>droit insuffisant, ligne en lecture seule</td>
+<td>non</td>
+</tr>
+<tr>
+<td><code>404</code></td>
+<td>ressource inconnue ou invisible</td>
+<td>non</td>
+</tr>
+<tr>
+<td><code>409</code>, <code>412</code></td>
+<td>conflit, version périmée</td>
+<td>après relecture</td>
+</tr>
+<tr>
+<td><code>422</code></td>
+<td>validation des champs</td>
+<td>non, corriger la donnée</td>
+</tr>
+<tr>
+<td><code>429</code></td>
+<td>quota dépassé</td>
+<td>oui, après <code>Retry-After</code></td>
+</tr>
+<tr>
+<td><code>500</code>, <code>502</code>, <code>503</code>, <code>504</code></td>
+<td>panne serveur ou intermédiaire</td>
+<td>oui, avec attente croissante</td>
+</tr>
+</tbody>
+</table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Ressource GoRest v3</th>
+<th>Chemin</th>
+<th>Portée d'écriture</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Utilisateurs</td>
+<td><code>/public/v3/users</code></td>
+<td><code>users:write</code></td>
+</tr>
+<tr>
+<td>Articles</td>
+<td><code>/public/v3/posts</code></td>
+<td><code>posts:write</code></td>
+</tr>
+<tr>
+<td>Commentaires</td>
+<td><code>/public/v3/comments</code></td>
+<td><code>comments:write</code></td>
+</tr>
+<tr>
+<td>Tâches</td>
+<td><code>/public/v3/tasks</code></td>
+<td><code>tasks:write</code></td>
+</tr>
+<tr>
+<td>Outils HTTP</td>
+<td><code>/public/v3/http/status/{code}</code>, <code>/http/delay/{ms}</code>, <code>/http/echo</code></td>
+<td>aucun jeton</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+  </div>
+</div>
+
+<script>
+// ─── THEME ──────────────────────────────────────────────────────────────────
+(function () {
+  const root = document.documentElement;
+  const stored = localStorage.getItem('dawan-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  updateToggleLabel();
+})();
+
+function updateToggleLabel() {
+  const current = document.documentElement.getAttribute('data-theme') ||
+    (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  document.getElementById('theme-icon').textContent = current === 'dark' ? '🌙' : '☀️';
+  document.getElementById('theme-label').textContent = current === 'dark' ? 'Sombre' : 'Clair';
+}
+
+function toggleTheme() {
+  const root = document.documentElement;
+  const current = root.getAttribute('data-theme') ||
+    (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  const next = current === 'dark' ? 'light' : 'dark';
+  root.setAttribute('data-theme', next);
+  localStorage.setItem('dawan-theme', next);
+  updateToggleLabel();
+}
+
+// ─── TABS ───────────────────────────────────────────────────────────────────
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.side-nav button').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+  document.querySelector('.content').scrollTo({ top: 0, behavior: 'instant' });
+}
+
+// ─── COPY CODE ──────────────────────────────────────────────────────────────
+function copyCode(btn) {
+  const pre = btn.previousElementSibling;
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.textContent = 'Copié !'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copier'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+</script>
+</body>
+</html>

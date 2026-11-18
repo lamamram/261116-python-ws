@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 400" role="img" aria-label="Du jeton aux permissions Django">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="860" height="400" fill="#ffffff"/>
+  <text x="430" y="30" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="600" fill="#1f2937">Du jeton Bearer aux permissions Django</text>
+
+  <rect x="20" y="70" width="150" height="86" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="95" y="98" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#1f2937">Jeton en clair</text>
+  <text x="95" y="120" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#475569">dans l'en-tête du client,</text>
+  <text x="95" y="136" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#475569">jamais stocké côté serveur</text>
+
+  <line x1="172" y1="113" x2="214" y2="113" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="193" y="104" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="10.5" fill="#475569">sha256</text>
+
+  <rect x="216" y="70" width="170" height="86" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="301" y="96" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="13.5" font-weight="700" fill="#1f2937">ApiToken</text>
+  <text x="301" y="116" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="11.5" fill="#1f2937">empreinte (unique)</text>
+  <text x="301" y="132" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="11.5" fill="#1f2937">expire_le, revoque</text>
+
+  <line x1="388" y1="113" x2="430" y2="113" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="432" y="70" width="140" height="86" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="502" y="96" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="13.5" font-weight="700" fill="#1f2937">User</text>
+  <text x="502" y="118" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#475569">service-editeur</text>
+  <text x="502" y="134" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="11" fill="#475569">request.auth</text>
+
+  <line x1="574" y1="113" x2="616" y2="113" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="618" y="70" width="140" height="86" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="688" y="96" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="13.5" font-weight="700" fill="#1f2937">Group</text>
+  <text x="688" y="118" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#475569">editeurs-catalogue</text>
+
+  <path d="M688,158 L688,214" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="540" y="216" width="296" height="104" rx="10" fill="#f0fdfa" stroke="#0f766e" stroke-width="1.5"/>
+  <text x="688" y="242" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="13.5" font-weight="700" fill="#1f2937">Permission</text>
+  <g font-family="ui-monospace, Consolas, monospace" font-size="12" fill="#1f2937">
+    <text x="558" y="266">catalogue.add_formation</text>
+    <text x="558" y="284">catalogue.change_formation</text>
+    <text x="558" y="302">catalogue.delete_formation</text>
+  </g>
+
+  <rect x="20" y="216" width="440" height="140" rx="10" fill="#fffbeb" stroke="#b45309" stroke-width="1.5"/>
+  <text x="240" y="242" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#b45309">Issues possibles</text>
+  <g font-family="system-ui, sans-serif" font-size="13" fill="#1f2937">
+    <text x="40" y="270"><tspan font-weight="700">401 missing_token</tspan> : en-tête absent</text>
+    <text x="40" y="294"><tspan font-weight="700">401 invalid_token</tspan> : empreinte inconnue, révoquée, expirée</text>
+    <text x="40" y="318"><tspan font-weight="700">403 insufficient_scope</tspan> : <tspan font-family="ui-monospace, Consolas, monospace" font-size="12">has_perm</tspan> faux</text>
+    <text x="40" y="342"><tspan font-weight="700">2xx</tspan> : l'opération s'exécute</text>
+  </g>
+</svg>

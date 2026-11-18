@@ -1,0 +1,2620 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Support interactif de formation Python Avancé — Web Services : 03 — Réimplémenter l&#x27;API Catalogue avec Django-Ninja, la sécuriser, la mettre en cache et la déployer">
+<title>03 — Réimplémenter l&#x27;API Catalogue avec Django-Ninja, la sécuriser, la mettre en cache et la déployer</title>
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --surface2: #1c2128; --border: #30363d;
+  --primary: #f0883e; --primary2: #ffa657;
+  --success: #3fb950; --warning: #d29922; --danger: #f85149;
+  --text: #e6edf3; --text-muted: #8b949e; --code-bg: #010409; --radius: 10px;
+  --topbar-h: 3.25rem;
+}
+:root[data-theme="light"] {
+  --bg: #ffffff; --surface: #f6f8fa; --surface2: #eaeef2; --border: #d0d7de;
+  --primary: #bc4c00; --primary2: #953800;
+  --success: #1a7f37; --warning: #9a6700; --danger: #cf222e;
+  --text: #1f2328; --text-muted: #656d76; --code-bg: #f6f8fa;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #ffffff; --surface: #f6f8fa; --surface2: #eaeef2; --border: #d0d7de;
+    --primary: #bc4c00; --primary2: #953800;
+    --success: #1a7f37; --warning: #9a6700; --danger: #cf222e;
+    --text: #1f2328; --text-muted: #656d76; --code-bg: #f6f8fa;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.7; transition: background .2s, color .2s; }
+
+/* TOPBAR — fixe, ne bouge jamais au scroll */
+.topbar {
+  position: sticky; top: 0; z-index: 200; height: var(--topbar-h);
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: .9rem; padding: 0 1rem;
+}
+.topbar .badge {
+  flex: 0 0 auto; background: var(--primary); color: #0d1117;
+  font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 20px; white-space: nowrap;
+}
+.topbar a.chapter-title {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: .5rem;
+  text-decoration: none; color: var(--text); font-weight: 700; font-size: .92rem;
+  overflow: hidden;
+}
+.topbar a.chapter-title:hover { color: var(--primary); }
+.topbar a.chapter-title .num { color: var(--primary); flex: 0 0 auto; }
+.topbar a.chapter-title .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-links { flex: 0 0 auto; display: flex; align-items: center; gap: .5rem; }
+.topbar-link {
+  white-space: nowrap; padding: .4rem .8rem; border: 1px solid var(--border); border-radius: 20px;
+  font-size: .8rem; font-weight: 600; color: var(--text-muted); text-decoration: none; transition: all .2s;
+}
+.topbar-link:hover { color: var(--primary); border-color: var(--primary); }
+.theme-toggle {
+  flex: 0 0 auto; background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  padding: .4rem .7rem; border-radius: 20px; font-size: .8rem; cursor: pointer;
+  display: inline-flex; align-items: center; gap: .35rem;
+}
+.theme-toggle:hover { border-color: var(--primary); }
+
+/* LAYOUT — sidebar gauche + contenu */
+.layout { display: flex; align-items: flex-start; }
+.sidebar {
+  flex: 0 0 280px; width: 280px;
+  position: sticky; top: var(--topbar-h);
+  height: calc(100vh - var(--topbar-h));
+  overflow-y: auto; border-right: 1px solid var(--border); background: var(--surface);
+  padding: 1.25rem 1rem 2rem;
+}
+.objectifs {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: .8rem 1rem; margin-bottom: 1.25rem;
+}
+.objectifs-label { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--primary); }
+.objectifs ul { margin: .4rem 0 0 1.1rem; }
+.objectifs li { font-size: .82rem; color: var(--text-muted); margin-bottom: .3rem; line-height: 1.4; }
+.side-nav { display: flex; flex-direction: column; gap: .1rem; }
+.side-nav button {
+  text-align: left; background: none; border: none; border-left: 3px solid transparent;
+  color: var(--text-muted); padding: .55rem .7rem; font-size: .87rem; font-weight: 500;
+  cursor: pointer; border-radius: 0 6px 6px 0; transition: all .15s;
+}
+.side-nav button:hover { color: var(--text); background: var(--surface2); }
+.side-nav button.active { color: var(--primary); border-left-color: var(--primary); background: var(--surface2); font-weight: 600; }
+.side-nav-sep { height: 1px; background: var(--border); margin: .6rem 0; }
+
+.content { flex: 1 1 auto; min-width: 0; }
+.tab-content { display: none; padding: 2rem 2.5rem 4rem; max-width: 1100px; margin: 0 auto; }
+.tab-content.active { display: block; }
+
+/* SECTIONS */
+h2 { font-size: 1.25rem; color: var(--primary2); margin: 1.8rem 0 .8rem; border-left: 3px solid var(--primary); padding-left: .75rem; }
+h3 { font-size: 1.05rem; color: var(--text); margin: 1.4rem 0 .6rem; }
+p { margin-bottom: .9rem; }
+ul, ol { padding-left: 1.4rem; margin-bottom: .9rem; }
+li { margin-bottom: .35rem; }
+
+/* RESSOURCES — liste sous forme de cartes plutôt que de puces */
+#tab-ressources ul { list-style: none; padding-left: 0; display: flex; flex-direction: column; gap: .5rem; }
+#tab-ressources li {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: .75rem 1rem; margin-bottom: 0;
+}
+#tab-ressources li a { color: var(--primary2); font-weight: 600; text-decoration: none; }
+#tab-ressources li a:hover { text-decoration: underline; }
+
+/* AIDE — divulgation progressive pas-à-pas */
+details.aide { margin-top: 1.5rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+details.aide summary {
+  cursor: pointer; padding: .8rem 1.1rem; font-weight: 600; color: var(--primary);
+  list-style: none; display: flex; align-items: center; gap: .5rem;
+}
+details.aide summary::-webkit-details-marker { display: none; }
+details.aide summary::before { content: "▶"; font-size: .7rem; transition: transform .15s; }
+details.aide[open] summary::before { transform: rotate(90deg); }
+details.aide .aide-body { padding: 0 1.1rem 1.1rem; border-top: 1px solid var(--border); margin-top: .2rem; padding-top: 1rem; }
+img { max-width: 100%; height: auto; display: block; margin: 1rem auto; }
+
+/* EXERCICE — un bloc par atelier, avec son aide pas-à-pas attachée juste en dessous */
+.exercice { padding: 1.3rem 0; border-top: 1px solid var(--border); }
+.exercice:first-of-type { border-top: none; padding-top: 0; }
+.exercice h3 { margin: 0 0 .8rem; color: var(--primary2); }
+
+/* CALLOUTS */
+.callout { border-radius: var(--radius); padding: .9rem 1.1rem; margin: 1.2rem 0; border-left: 4px solid; background: var(--surface2); }
+.callout.note   { border-color: var(--primary); }
+.callout.tip    { border-color: var(--success); }
+.callout.warn   { border-color: var(--warning); }
+.callout.danger { border-color: var(--danger); }
+.callout p:last-child { margin-bottom: 0; }
+.callout-title { font-weight: 700; font-size: .82rem; text-transform: uppercase; letter-spacing: .07em; margin-bottom: .4rem; }
+.callout.note   .callout-title { color: var(--primary); }
+.callout.tip    .callout-title { color: var(--success); }
+.callout.warn   .callout-title { color: var(--warning); }
+.callout.danger .callout-title { color: var(--danger); }
+
+/* TABLES */
+.table-wrap { overflow-x: auto; margin: 1rem 0; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th { background: var(--surface2); color: var(--primary2); text-align: left; padding: .6rem .9rem; font-weight: 600; border: 1px solid var(--border); }
+td { padding: .55rem .9rem; border: 1px solid var(--border); vertical-align: top; }
+tr:hover td { background: var(--surface2); }
+
+/* CODE */
+.code-block { position: relative; margin: 1rem 0; }
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1rem 1rem 1.2rem; overflow-x: auto; }
+code { font-family: 'Consolas', 'Cascadia Code', monospace; font-size: .88rem; color: var(--primary2); }
+p code, li code, td code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px; padding: .05rem .35rem; }
+.copy-btn {
+  position: absolute; top: .5rem; right: .5rem;
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted);
+  padding: .25rem .6rem; font-size: .75rem; border-radius: 5px; cursor: pointer; transition: all .2s;
+}
+.copy-btn:hover { background: var(--primary); color: #0d1117; }
+.copy-btn.copied { background: var(--success); color: #0d1117; }
+
+/* QUIZ */
+.quiz-question { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem; margin-bottom: 1.2rem; }
+.quiz-question h4 { color: var(--primary2); margin-bottom: .9rem; font-size: .98rem; }
+.quiz-options { display: flex; flex-direction: column; gap: .5rem; }
+.quiz-option {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: .6rem .9rem; cursor: pointer;
+  font-size: .9rem; transition: all .2s; text-align: left; color: var(--text);
+}
+.quiz-option:hover:not(:disabled) { border-color: var(--primary); }
+.quiz-option.correct { border-color: var(--success); color: var(--success); }
+.quiz-option.wrong   { border-color: var(--danger);  color: var(--danger);  }
+.quiz-option:disabled { cursor: default; }
+.quiz-feedback { margin-top: .6rem; font-size: .87rem; color: var(--text-muted); font-style: italic; }
+.quiz-score {
+  background: var(--surface2); border: 1px solid var(--primary);
+  border-radius: var(--radius); padding: 1.5rem; text-align: center; margin-top: 1.5rem; display: none;
+}
+.quiz-score .score-num { font-size: 2.5rem; font-weight: 700; color: var(--primary); }
+.quiz-score p { color: var(--text-muted); margin-top: .4rem; }
+.btn-restart { background: var(--primary); color: #0d1117; border: none; padding: .6rem 1.4rem; border-radius: 8px; font-weight: 700; cursor: pointer; margin-top: 1rem; font-size: .9rem; }
+.btn-restart:hover { background: var(--primary2); }
+
+/* RESPONSIVE — sidebar devient une barre horizontale sous 900px */
+@media (max-width: 900px) {
+  .layout { flex-direction: column; }
+  .sidebar {
+    position: static; width: 100%; height: auto; max-height: 40vh;
+    border-right: none; border-bottom: 1px solid var(--border);
+  }
+  .side-nav { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: .3rem; }
+  .side-nav button { border-left: none; border-bottom: 3px solid transparent; white-space: nowrap; border-radius: 6px 6px 0 0; }
+  .side-nav button.active { border-left-color: transparent; border-bottom-color: var(--primary); }
+  .side-nav-sep { display: none; }
+  .tab-content { padding: 1.5rem 1.2rem 3rem; }
+  .topbar a.chapter-title { font-size: .82rem; }
+}
+</style>
+<link rel="stylesheet" href="assets/course-common.css">
+<script src="assets/course-common.js" defer></script>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="badge">Python Avancé — Web Services</span>
+  <a class="chapter-title" href="index.html" title="Retour à l'accueil de la formation">
+    <span class="num">03</span><span class="txt">Réimplémenter l&#x27;API Catalogue avec Django-Ninja, la sécuriser, la mettre en cache et la déployer</span>
+  </a>
+  <div class="topbar-links">
+    
+    <a class="topbar-link" href="index.html">Sommaire</a>
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Basculer entre thème clair et sombre">
+      <span id="theme-icon">🌙</span> <span id="theme-label">Sombre</span>
+    </button>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="objectifs"><span class="objectifs-label">Objectifs</span><ul><li>situer Django REST framework et Django-Ninja dans l&#x27;écosystème des API Django et choisir entre eux</li><li>réimplémenter le contrat de l&#x27;API Catalogue avec Django-Ninja, l&#x27;ORM Django et des schémas Pydantic</li><li>transformer toutes les erreurs en Problem Details, avec le même format que l&#x27;implémentation FastAPI</li><li>authentifier par jeton Bearer (stocké sous forme d&#x27;empreinte) et par BASIC, puis contrôler les droits avec les permissions Django</li><li>mettre en cache les lectures avec Redis ou Memcached et invalider le cache à chaque écriture</li><li>décrire et préparer le déploiement d&#x27;une API Django et d&#x27;une API FastAPI (serveur d&#x27;application, proxy, base, conteneurs)</li></ul></div>
+    <nav class="side-nav" id="main-nav">
+      <button class="active" onclick="showTab('objectifs-pedagogiques')">Objectifs pédagogiques</button>
+  <button class="" onclick="showTab('organisation-de-la-journee')">Organisation de la journée</button>
+  <button class="" onclick="showTab('b5-bloc-5-180-min')">B5 bloc 5 · 180 min</button>
+  <button class="" onclick="showTab('b6-bloc-5-atelier-90-min')">B6 bloc 5 (atelier) · 90 min</button>
+  <button class="" onclick="showTab('b7-bloc-6-90-min')">B7 bloc 6 · 90 min</button>
+  <button class="" onclick="showTab('synthese-de-fin-de-journee')">Synthèse de fin de journée</button>
+  <button class="" onclick="showTab('annexe-commandes-du-jour-cheat-sheet')">Annexe — Commandes du jour (cheat-sheet)</button>
+    </nav>
+  </aside>
+  <div class="content">
+    <div id="tab-objectifs-pedagogiques" class="tab-content active">
+<p>À la fin de la journée, les stagiaires sont capables de :</p>
+<ul>
+<li>situer Django REST framework et Django-Ninja dans l'écosystème des API Django, et choisir entre eux ;</li>
+<li>réimplémenter le contrat de l'API Catalogue avec Django-Ninja, l'ORM Django et des schémas Pydantic ;</li>
+<li>transformer toutes les erreurs en Problem Details, avec le même format que l'implémentation FastAPI ;</li>
+<li>authentifier par jeton Bearer (stocké sous forme d'empreinte) et par BASIC, puis contrôler les droits avec les permissions Django ;</li>
+<li>mettre en cache les lectures avec Redis ou Memcached, et invalider le cache à chaque écriture ;</li>
+<li>décrire et préparer le déploiement d'une API Django et d'une API FastAPI : serveur d'application, proxy, base de données, conteneurs.</li>
+</ul>
+<h3>Livrable de la journée</h3>
+<p>Le dépôt <code>api-catalogue/</code> enrichi d'un projet Django <code>django_api/</code> qui :</p>
+<ul>
+<li>expose <strong>exactement le même contrat</strong> que l'API FastAPI (mêmes URL, mêmes codes, mêmes erreurs) sous le préfixe <code>/v1</code> ;</li>
+<li>stocke les données dans la base via l'ORM, avec des jetons conservés sous forme d'empreinte ;</li>
+<li>contrôle les écritures avec les groupes et permissions Django ;</li>
+<li>met les lectures en cache (Redis ou Memcached en production, mémoire locale en développement) ;</li>
+<li>réussit <code>verifier_avec_client.py</code> sans modification du code du client, seule l'URL de base change ;</li>
+<li>dispose d'un <code>Dockerfile</code> et d'un <code>docker-compose.yml</code> (Django, PostgreSQL, Redis, Nginx) et d'un <code>Dockerfile</code> pour l'API FastAPI.</li>
+</ul>
+<div class="callout note"><div class="callout-title">Choix pédagogique</div><p>La journée se lit comme un <strong>test de contrat</strong>. Le client du jour 1 et le scénario du jour 2 sont rejoués tels quels contre une implémentation entièrement différente. Si le contrat est bien conçu, le consommateur ne voit pas la différence. C'est la raison d'être des API : séparer ce qu'on promet (le contrat) de la manière dont on le tient (le framework, la base de données, le cache).</p></div>
+</div>
+
+<div id="tab-organisation-de-la-journee" class="tab-content">
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Heure</th>
+<th>Séquence</th>
+<th>Blocs programme</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>09h00 – 09h15</td>
+<td>Accueil, retour sur le jour 2, vérification des postes</td>
+<td>—</td>
+</tr>
+<tr>
+<td>09h15 – 10h45</td>
+<td><strong>Pratique guidée</strong> — écosystème REST de Django, projet, modèles, schémas, routes</td>
+<td>Bloc 5</td>
+</tr>
+<tr>
+<td>10h45 – 11h00</td>
+<td>Pause</td>
+<td></td>
+</tr>
+<tr>
+<td>11h00 – 12h30</td>
+<td><strong>Pratique guidée</strong> — erreurs, authentification, droits Django, mise en cache</td>
+<td>Bloc 5</td>
+</tr>
+<tr>
+<td>12h30 – 13h30</td>
+<td>Déjeuner</td>
+<td></td>
+</tr>
+<tr>
+<td>13h30 – 15h00</td>
+<td><strong>Atelier</strong> — Créer un service web avec Django-Ninja</td>
+<td>Bloc 5</td>
+</tr>
+<tr>
+<td>15h00 – 15h15</td>
+<td>Pause</td>
+<td></td>
+</tr>
+<tr>
+<td>15h15 – 16h45</td>
+<td><strong>Pratique guidée</strong> — déploiement d'un service web Django et FastAPI</td>
+<td>Bloc 6</td>
+</tr>
+<tr>
+<td>16h45 – 17h30</td>
+<td>Bilan, évaluation, suite de parcours</td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout tip"><div class="callout-title">Rythme</div><p>La théorie reste courte : chaque notion se découvre en construisant l'API. Le code de la section B5 est écrit pas à pas par les stagiaires. L'atelier (B6) assemble l'ensemble, ajoute les tests et rejoue le scénario du jour 2. Les fichiers qui ne figurent pas dans B5 sont donnés en intégralité dans l'atelier.</p></div>
+<hr />
+</div>
+
+<div id="tab-b5-bloc-5-180-min" class="tab-content">
+<h3>5.1 L'écosystème REST de Django</h3>
+<p>Django sait déjà servir des pages, mais pas, seul, produire proprement une API : pas de validation structurée du JSON, pas de contrat OpenAPI, pas de format d'erreur unifié. Deux bibliothèques comblent ce manque et dominent l'écosystème :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Critère</th>
+<th><strong>Django REST framework</strong> (DRF)</th>
+<th><strong>Django-Ninja</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ancienneté</td>
+<td>depuis 2011, très répandu en entreprise</td>
+<td>plus récent, inspiré de FastAPI</td>
+</tr>
+<tr>
+<td>Validation et sérialisation</td>
+<td><strong>sérialiseurs</strong> (<code>Serializer</code>, <code>ModelSerializer</code>)</td>
+<td><strong>schémas Pydantic</strong> (<code>Schema</code>)</td>
+</tr>
+<tr>
+<td>Déclaration des routes</td>
+<td>classes (<code>ViewSet</code>) et routeurs</td>
+<td>fonctions décorées, comme FastAPI</td>
+</tr>
+<tr>
+<td>Documentation OpenAPI</td>
+<td>via une extension ou un générateur de schéma</td>
+<td><strong>native</strong>, générée à partir des annotations de type</td>
+</tr>
+<tr>
+<td>Authentification et droits</td>
+<td>classes d'authentification et de permission, riches et éprouvées</td>
+<td>classes d'authentification, droits à écrire avec des décorateurs ou des exceptions</td>
+</tr>
+<tr>
+<td>Paramètres et filtres</td>
+<td><code>django-filter</code>, pagination configurable</td>
+<td>annotations de type, pagination intégrée</td>
+</tr>
+<tr>
+<td>Courbe d'apprentissage</td>
+<td>plus longue (beaucoup de concepts)</td>
+<td>courte si l'on connaît FastAPI</td>
+</tr>
+<tr>
+<td>Quand le choisir</td>
+<td>gros projet existant, équipe qui connaît DRF, besoin de son écosystème</td>
+<td>nouvelle API, besoin de typage, de rapidité d'écriture et d'une documentation automatique</td>
+</tr>
+</tbody>
+</table></div>
+<p>Les deux s'intègrent à l'ORM, à l'administration, au système d'authentification et aux migrations de Django. C'est l'argument décisif face à FastAPI quand une application Django existe déjà : <strong>les modèles, les utilisateurs, les groupes et les permissions sont déjà là</strong>.</p>
+<p><strong>Rappel de DRF</strong> (aperçu, non réalisé aujourd'hui) : le même point d'entrée tient en trois blocs.</p>
+<div class="code-block"><pre><code class="language-python">from rest_framework import routers, serializers, viewsets
+
+class FormationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Formation
+        fields = [&quot;id&quot;, &quot;code&quot;, &quot;titre&quot;, &quot;duree_jours&quot;, &quot;niveau&quot;]
+
+class FormationViewSet(viewsets.ModelViewSet):
+    queryset = Formation.objects.all()
+    serializer_class = FormationSerializer
+
+router = routers.DefaultRouter(trailing_slash=False)
+router.register(&quot;formations&quot;, FormationViewSet)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><code>ModelViewSet</code> fournit seul les cinq opérations (liste, lecture, création, modification, suppression). C'est très concis tant que le comportement standard convient ; dès qu'il faut un format d'erreur, une pagination ou un contrat précis, on redéfinit des méthodes de classe. Django-Ninja part de l'idée inverse : chaque opération est écrite explicitement, ce qui convient à un <strong>contrat défini à l'avance</strong>, comme celui de l'API Catalogue.</p>
+<p><img alt="Équivalences entre FastAPI et Django-Ninja" src="../contenus/equivalences-fastapi-ninja.svg" /></p>
+<div class="callout note"><div class="callout-title">Analogie : deux ateliers, un plan</div><p>Deux menuisiers qui disposent des mêmes plans fabriquent le même meuble avec des outils différents. Le plan est le contrat OpenAPI de l'API Catalogue ; FastAPI et Django-Ninja sont les deux ateliers. Le client du jour 1 joue le rôle de l'inspecteur qui vérifie la conformité du meuble.</p></div>
+<h3>5.2 Créer le projet Django</h3>
+<p><strong>Choix de version.</strong> On se forme sur une version à <strong>support long terme</strong> (LTS) : <strong>Django 5.2</strong>. Django-Ninja se rattache à n'importe quel projet Django existant ; il n'a pas besoin d'être déclaré dans <code>INSTALLED_APPS</code>, sauf si l'on veut servir les ressources de la documentation interactive par les fichiers statiques de Django plutôt que par un CDN (réseau d'hébergement tiers), ce que nous ferons pour le déploiement.</p>
+<div class="code-block"><pre><code class="language-bash"># dans api-catalogue/, environnement virtuel actif
+pip install &quot;Django&gt;=5.2,&lt;5.3&quot; &quot;django-ninja&gt;=1.8,&lt;2&quot; pytest-django whitenoise gunicorn
+pip freeze &gt; requirements.txt
+
+mkdir django_api &amp;&amp; cd django_api
+django-admin startproject config .
+python manage.py startapp catalogue
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Arborescence cible, avec les fichiers écrits aujourd'hui :</p>
+<div class="code-block"><pre><code>api-catalogue/
+├── .env                              # + variables du jour 3
+├── catalogue_client/                 # jour 1
+├── app/                              # jour 2 (FastAPI)
+├── django_api/                       # jour 3 (Django-Ninja)
+│   ├── manage.py
+│   ├── pytest.ini
+│   ├── config/
+│   │   ├── settings.py
+│   │   ├── urls.py
+│   │   └── wsgi.py
+│   ├── catalogue/
+│   │   ├── enums.py
+│   │   ├── models.py
+│   │   ├── admin.py
+│   │   ├── schemas.py
+│   │   ├── erreurs.py
+│   │   ├── securite.py
+│   │   ├── pagination.py
+│   │   ├── cache_catalogue.py
+│   │   ├── api.py
+│   │   ├── routes/
+│   │   │   ├── __init__.py
+│   │   │   ├── formations.py
+│   │   │   └── statistiques.py
+│   │   └── management/commands/initialiser_catalogue.py
+│   └── tests/test_api_django.py
+└── verifier_avec_client.py
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Réglages essentiels de <code>config/settings.py</code>.</strong> Le fichier généré par <code>startproject</code> est conservé ; on en change les points qui diffèrent entre développement et production. Tout ce qui varie se lit dans l'environnement, d'après la règle du jour 1.</p>
+<div class="code-block"><pre><code class="language-python">import os
+from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR.parent / &quot;.env&quot;)        # .env partagé avec les jours 1 et 2
+
+
+def env_bool(nom: str, defaut: bool = False) -&gt; bool:
+    return os.getenv(nom, str(defaut)).strip().lower() in {&quot;1&quot;, &quot;true&quot;, &quot;yes&quot;, &quot;on&quot;}
+
+
+PRODUCTION = env_bool(&quot;DJANGO_PRODUCTION&quot;)
+DEBUG = False if PRODUCTION else env_bool(&quot;DJANGO_DEBUG&quot;, True)
+
+SECRET_KEY = os.environ.get(&quot;DJANGO_SECRET_KEY&quot;)
+if not SECRET_KEY:
+    if PRODUCTION:
+        raise ImproperlyConfigured(&quot;DJANGO_SECRET_KEY est obligatoire en production.&quot;)
+    SECRET_KEY = &quot;cle-de-developpement-uniquement&quot;
+
+ALLOWED_HOSTS = [h for h in os.getenv(&quot;DJANGO_ALLOWED_HOSTS&quot;, &quot;127.0.0.1,localhost&quot;).split(&quot;,&quot;) if h]
+
+INSTALLED_APPS = [
+    &quot;django.contrib.admin&quot;,
+    &quot;django.contrib.auth&quot;,
+    &quot;django.contrib.contenttypes&quot;,
+    &quot;django.contrib.sessions&quot;,
+    &quot;django.contrib.messages&quot;,
+    &quot;django.contrib.staticfiles&quot;,
+    &quot;ninja&quot;,                 # docs servies en statique, sans CDN
+    &quot;catalogue&quot;,
+]
+
+MIDDLEWARE = [
+    &quot;django.middleware.security.SecurityMiddleware&quot;,
+    &quot;whitenoise.middleware.WhiteNoiseMiddleware&quot;,
+    &quot;django.contrib.sessions.middleware.SessionMiddleware&quot;,
+    &quot;django.middleware.common.CommonMiddleware&quot;,
+    &quot;django.middleware.csrf.CsrfViewMiddleware&quot;,
+    &quot;django.contrib.auth.middleware.AuthenticationMiddleware&quot;,
+    &quot;django.contrib.messages.middleware.MessageMiddleware&quot;,
+    &quot;django.middleware.clickjacking.XFrameOptionsMiddleware&quot;,
+]
+
+LANGUAGE_CODE = &quot;fr-fr&quot;
+TIME_ZONE = &quot;Europe/Paris&quot;
+USE_TZ = True
+DEFAULT_AUTO_FIELD = &quot;django.db.models.BigAutoField&quot;
+
+STATIC_URL = &quot;static/&quot;
+STATIC_ROOT = BASE_DIR / &quot;staticfiles&quot;
+STORAGES = {
+    &quot;default&quot;: {&quot;BACKEND&quot;: &quot;django.core.files.storage.FileSystemStorage&quot;},
+    &quot;staticfiles&quot;: {&quot;BACKEND&quot;: &quot;whitenoise.storage.CompressedStaticFilesStorage&quot;},
+}
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Les parties « base de données », « cache » et « sécurité HTTPS » du même fichier sont écrites plus loin (sections 5.8 et B7).</p>
+<p><strong>Brancher l'API dans <code>config/urls.py</code> :</strong></p>
+<div class="code-block"><pre><code class="language-python">from django.contrib import admin
+from django.urls import path
+
+from catalogue.api import api
+
+handler404 = &quot;catalogue.erreurs.page_introuvable&quot;
+
+urlpatterns = [
+    path(&quot;admin/&quot;, admin.site.urls),
+    path(&quot;v1/&quot;, api.urls),
+]
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Le préfixe <code>v1/</code> reproduit celui de l'API FastAPI : <code>/v1/formations</code> désigne la même ressource dans les deux implémentations. Le site d'administration Django reste sous <code>/admin/</code> et n'a rien à voir avec <code>/v1/admin/statistiques</code>.</p>
+<h3>5.3 Modèles et schémas</h3>
+<p><strong>Le modèle de données</strong> traduit les ressources du contrat en tables. Les énumérations restent des objets Python simples, partagées par l'ORM et par les schémas :</p>
+<div class="code-block"><pre><code class="language-python"># catalogue/enums.py
+from enum import Enum
+
+
+class Niveau(str, Enum):
+    initiation = &quot;initiation&quot;
+    intermediaire = &quot;intermediaire&quot;
+    avance = &quot;avance&quot;
+
+
+class StatutSession(str, Enum):
+    planifiee = &quot;planifiee&quot;
+    confirmee = &quot;confirmee&quot;
+    annulee = &quot;annulee&quot;
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-python"># catalogue/models.py
+import hashlib
+import secrets
+import uuid
+from datetime import timedelta
+
+from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
+from django.db import models
+from django.utils import timezone
+
+from .enums import Niveau, StatutSession
+
+
+def empreinte(jeton: str) -&gt; str:
+    return hashlib.sha256(jeton.encode(&quot;utf8&quot;)).hexdigest()
+
+
+class Formation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.CharField(max_length=11, unique=True,
+                            validators=[RegexValidator(r&quot;^[A-Z]{3}\d{6}-[A-Z]$&quot;)])
+    titre = models.CharField(max_length=120)
+    description = models.TextField(null=True, blank=True)
+    duree_jours = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(10)])
+    niveau = models.CharField(max_length=13, choices=[(n.value, n.value) for n in Niveau])
+    cree_le = models.DateTimeField(auto_now_add=True)
+    modifie_le = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = [&quot;code&quot;]
+
+    def __str__(self) -&gt; str:
+        return f&quot;{self.code} — {self.titre}&quot;
+
+
+class SessionFormation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    formation = models.ForeignKey(Formation, on_delete=models.CASCADE, related_name=&quot;sessions&quot;)
+    date_debut = models.DateField()
+    lieu = models.CharField(max_length=80)
+    places = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(30)])
+    statut = models.CharField(max_length=10, default=StatutSession.planifiee.value,
+                              choices=[(s.value, s.value) for s in StatutSession])
+
+    class Meta:
+        ordering = [&quot;date_debut&quot;, &quot;id&quot;]
+
+
+class ApiToken(models.Model):
+    utilisateur = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                    related_name=&quot;jetons&quot;)
+    nom = models.CharField(max_length=80)
+    empreinte = models.CharField(max_length=64, unique=True, editable=False)
+    expire_le = models.DateTimeField(null=True, blank=True)
+    revoque = models.BooleanField(default=False)
+    cree_le = models.DateTimeField(auto_now_add=True)
+
+    @classmethod
+    def generer(cls, utilisateur, nom: str, validite_jours: int | None = None):
+        &quot;&quot;&quot;Crée un jeton ; la valeur en clair n'est renvoyée qu'ici, une seule fois.&quot;&quot;&quot;
+        jeton = secrets.token_urlsafe(32)
+        expire = timezone.now() + timedelta(days=validite_jours) if validite_jours else None
+        instance = cls.objects.create(utilisateur=utilisateur, nom=nom,
+                                      empreinte=empreinte(jeton), expire_le=expire)
+        return instance, jeton
+
+    def est_expire(self) -&gt; bool:
+        return self.expire_le is not None and self.expire_le &lt;= timezone.now()
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Points à commenter avec les stagiaires :</p>
+<ul>
+<li>les <strong>UUID</strong> comme clés primaires reproduisent le choix du jour 2 (identifiants opaques) ; le contrat ne dépend pas de la base ;</li>
+<li><code>ApiToken</code> ne conserve <strong>que l'empreinte</strong> (SHA-256) du jeton. Quiconque lit la base ne peut pas rejouer les jetons, comme pour un mot de passe. Contrairement à un mot de passe choisi par un humain, un jeton aléatoire de 256 bits ne se devine pas par dictionnaire : une empreinte rapide (SHA-256) suffit, là où un mot de passe exige un algorithme volontairement lent ;</li>
+<li>la valeur en clair n'est connue qu'à la génération : GoRest fonctionne de la même façon (« affiché une seule fois »).</li>
+</ul>
+<div class="code-block"><pre><code class="language-bash">python manage.py makemigrations catalogue
+python manage.py migrate
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-python"># catalogue/admin.py
+from django.contrib import admin
+
+from .models import ApiToken, Formation, SessionFormation
+
+admin.site.register(Formation)
+admin.site.register(SessionFormation)
+
+
+@admin.register(ApiToken)
+class ApiTokenAdmin(admin.ModelAdmin):
+    list_display = (&quot;nom&quot;, &quot;utilisateur&quot;, &quot;expire_le&quot;, &quot;revoque&quot;, &quot;cree_le&quot;)
+    readonly_fields = (&quot;empreinte&quot;,)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Les schémas</strong> décrivent ce qui entre et ce qui sort de l'API. <code>ninja.Schema</code> est un modèle Pydantic qui sait aussi lire des objets ORM : le code de validation du jour 2 se reprend presque à l'identique.</p>
+<div class="code-block"><pre><code class="language-python"># catalogue/schemas.py
+import uuid
+from datetime import date, datetime
+
+from ninja import Schema
+from pydantic import ConfigDict, Field, field_validator, model_validator
+
+from .enums import Niveau, StatutSession
+
+
+class FormationIn(Schema):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    code: str = Field(pattern=r&quot;^[A-Z]{3}\d{6}-[A-Z]$&quot;, examples=[&quot;PYT100614-F&quot;])
+    titre: str = Field(min_length=3, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    duree_jours: int = Field(ge=1, le=10)
+    niveau: Niveau
+
+
+class FormationPatch(Schema):
+    model_config = ConfigDict(str_strip_whitespace=True, extra=&quot;forbid&quot;)
+
+    titre: str | None = Field(default=None, min_length=3, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    duree_jours: int | None = Field(default=None, ge=1, le=10)
+    niveau: Niveau | None = None
+
+    @model_validator(mode=&quot;after&quot;)
+    def refuser_null_sur_champs_obligatoires(self) -&gt; &quot;FormationPatch&quot;:
+        for champ in (&quot;titre&quot;, &quot;duree_jours&quot;, &quot;niveau&quot;):
+            if champ in self.model_fields_set and getattr(self, champ) is None:
+                raise ValueError(f&quot;{champ} ne peut pas être null&quot;)
+        return self
+
+
+class FormationOut(Schema):
+    id: uuid.UUID
+    code: str
+    titre: str
+    description: str | None = None
+    duree_jours: int
+    niveau: Niveau
+    cree_le: datetime
+    modifie_le: datetime
+
+
+class SessionIn(Schema):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    date_debut: date
+    lieu: str = Field(min_length=2, max_length=80)
+    places: int = Field(ge=1, le=30)
+    statut: StatutSession = StatutSession.planifiee
+
+    @field_validator(&quot;date_debut&quot;)
+    @classmethod
+    def dans_le_futur(cls, valeur: date) -&gt; date:
+        if valeur &lt;= date.today():
+            raise ValueError(&quot;la date de début doit être postérieure à aujourd'hui&quot;)
+        return valeur
+
+
+class SessionOut(Schema):
+    id: uuid.UUID
+    formation_id: uuid.UUID
+    date_debut: date
+    lieu: str
+    places: int
+    statut: StatutSession
+
+
+class Meta(Schema):
+    has_more: bool
+    next_cursor: str | None = None
+    total: int | None = None
+
+
+class PageFormations(Schema):
+    data: list[FormationOut]
+    meta: Meta
+
+
+class PageSessions(Schema):
+    data: list[SessionOut]
+    meta: Meta
+
+
+class Statistiques(Schema):
+    formations: int
+    sessions: int
+    demandeur: str
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>La comparaison avec <code>app/schemas.py</code> du jour 2 montre deux différences seulement : <code>Schema</code> remplace <code>BaseModel</code>, et les modèles ne portent plus l'<code>id</code> ni les dates (l'ORM s'en charge). Les contraintes sont <strong>identiques mot pour mot</strong> : c'est ce qui garantit que les deux API refusent les mêmes données.</p>
+<h3>5.4 Pagination, cache et routes</h3>
+<p><strong>La pagination par curseur</strong> du jour 2 est reprise, appliquée à un <code>QuerySet</code> : on lit un élément de plus que la taille de page pour savoir s'il en reste, sans compter la table.</p>
+<div class="code-block"><pre><code class="language-python"># catalogue/pagination.py
+import base64
+from typing import Any
+
+from .erreurs import ErreurApi
+
+
+def encoder_curseur(decalage: int) -&gt; str:
+    return base64.urlsafe_b64encode(str(decalage).encode()).decode()
+
+
+def decoder_curseur(curseur: str) -&gt; int:
+    try:
+        decalage = int(base64.urlsafe_b64decode(curseur.encode()).decode())
+    except ValueError as exc:      # binascii.Error et UnicodeDecodeError héritent de ValueError
+        raise ErreurApi(400, &quot;invalid_cursor&quot;, &quot;Curseur de pagination invalide.&quot;) from exc
+    if decalage &lt; 0:
+        raise ErreurApi(400, &quot;invalid_cursor&quot;, &quot;Curseur de pagination invalide.&quot;)
+    return decalage
+
+
+def paginer(qs, taille: int, apres: str | None, compter: bool, schema) -&gt; dict[str, Any]:
+    debut = decoder_curseur(apres) if apres else 0
+    lot = list(qs[debut: debut + taille + 1])            # un élément de plus : y a-t-il une suite ?
+    suite = len(lot) &gt; taille
+    return {
+        &quot;data&quot;: [schema.model_validate(objet).model_dump(mode=&quot;json&quot;) for objet in lot[:taille]],
+        &quot;meta&quot;: {
+            &quot;has_more&quot;: suite,
+            &quot;next_cursor&quot;: encoder_curseur(debut + taille) if suite else None,
+            &quot;total&quot;: qs.count() if compter else None,
+        },
+    }
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Les données sont sérialisées en types JSON simples (<code>mode="json"</code>) : le résultat est <strong>directement stockable dans un cache</strong> (section 5.8).</p>
+<p><strong>Les routes des formations.</strong> Chaque opération porte ses contraintes de paramètres avec <code>Query[type, P(...)]</code>, forme documentée par Django-Ninja ; <code>alias=</code> expose les noms <code>page[size]</code>, <code>filter[niveau]</code> du contrat.</p>
+<div class="code-block"><pre><code class="language-python"># catalogue/routes/formations.py
+import uuid
+from typing import Literal
+
+from django.db import IntegrityError, transaction
+from django.db.models import Q
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import get_object_or_404
+from ninja import P, Query, Router, Status
+
+from .. import cache_catalogue
+from ..enums import Niveau
+from ..erreurs import ErreurApi
+from ..models import Formation, SessionFormation
+from ..pagination import paginer
+from ..schemas import (FormationIn, FormationOut, FormationPatch, PageFormations,
+                       PageSessions, SessionIn, SessionOut)
+from ..securite import JETON, exiger_permission
+
+router = Router(tags=[&quot;formations&quot;])
+
+
+@router.get(&quot;&quot;, response=PageFormations, summary=&quot;Lister les formations&quot;)
+def lister_formations(
+    request: HttpRequest,
+    response: HttpResponse,
+    niveau: Query[Niveau | None, P(alias=&quot;filter[niveau]&quot;)] = None,
+    recherche: Query[str | None, P(alias=&quot;search&quot;, min_length=2, max_length=50)] = None,
+    tri: Query[Literal[&quot;code&quot;, &quot;-code&quot;, &quot;titre&quot;, &quot;-titre&quot;, &quot;duree_jours&quot;, &quot;-duree_jours&quot;],
+               P(alias=&quot;sort&quot;)] = &quot;code&quot;,
+    taille: Query[int, P(alias=&quot;page[size]&quot;, ge=1, le=100)] = 25,
+    apres: Query[str | None, P(alias=&quot;page[after]&quot;)] = None,
+    compter: Query[bool, P(alias=&quot;page[count]&quot;)] = False,
+):
+    &quot;&quot;&quot;Liste filtrée, triée et paginée par curseur.&quot;&quot;&quot;
+    def calculer():
+        qs = Formation.objects.all()
+        if niveau:
+            qs = qs.filter(niveau=niveau.value)
+        if recherche:
+            qs = qs.filter(Q(titre__icontains=recherche) | Q(code__icontains=recherche))
+        qs = qs.order_by((&quot;-&quot; if tri.startswith(&quot;-&quot;) else &quot;&quot;) + tri.lstrip(&quot;-&quot;), &quot;id&quot;)
+        return paginer(qs, taille, apres, compter, FormationOut)
+
+    return cache_catalogue.lire_ou_calculer(request, response, &quot;formations&quot;, calculer)
+
+
+@router.get(&quot;/{formation_id}&quot;, response=FormationOut, summary=&quot;Lire une formation&quot;)
+def lire_formation(request: HttpRequest, response: HttpResponse, formation_id: uuid.UUID):
+    def calculer():
+        formation = get_object_or_404(Formation, pk=formation_id)
+        return FormationOut.model_validate(formation).model_dump(mode=&quot;json&quot;)
+
+    return cache_catalogue.lire_ou_calculer(request, response, &quot;formation&quot;, calculer)
+
+
+@router.post(&quot;&quot;, response={201: FormationOut}, auth=JETON, summary=&quot;Créer une formation&quot;)
+@exiger_permission(&quot;catalogue.add_formation&quot;)
+def creer_formation(request: HttpRequest, response: HttpResponse, donnees: FormationIn):
+    try:
+        with transaction.atomic():
+            formation = Formation.objects.create(**donnees.model_dump(mode=&quot;json&quot;))
+    except IntegrityError as exc:
+        raise ErreurApi(409, &quot;code_deja_utilise&quot;, f&quot;Le code {donnees.code} existe déjà.&quot;) from exc
+    cache_catalogue.invalider()
+    response[&quot;Location&quot;] = request.build_absolute_uri(f&quot;{request.path.rstrip('/')}/{formation.id}&quot;)
+    return Status(201, formation)
+
+
+@router.patch(&quot;/{formation_id}&quot;, response=FormationOut, auth=JETON,
+              summary=&quot;Modifier partiellement une formation&quot;)
+@exiger_permission(&quot;catalogue.change_formation&quot;)
+def modifier_formation(request: HttpRequest, formation_id: uuid.UUID, changements: FormationPatch):
+    formation = get_object_or_404(Formation, pk=formation_id)
+    for champ, valeur in changements.model_dump(exclude_unset=True, mode=&quot;json&quot;).items():
+        setattr(formation, champ, valeur)
+    formation.save()
+    cache_catalogue.invalider()
+    return formation
+
+
+@router.delete(&quot;/{formation_id}&quot;, response={204: None}, auth=JETON,
+               summary=&quot;Supprimer une formation&quot;)
+@exiger_permission(&quot;catalogue.delete_formation&quot;)
+def supprimer_formation(request: HttpRequest, formation_id: uuid.UUID):
+    get_object_or_404(Formation, pk=formation_id).delete()
+    cache_catalogue.invalider()
+    return Status(204, None)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Les différences notables avec la version FastAPI, à faire repérer :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Point</th>
+<th>FastAPI (jour 2)</th>
+<th>Django-Ninja (jour 3)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Code de succès d'une création</td>
+<td><code>status_code=201</code> dans le décorateur</td>
+<td><code>response={201: FormationOut}</code> et <code>Status(201, ...)</code></td>
+</tr>
+<tr>
+<td>Suppression</td>
+<td><code>status_code=204</code>, <code>response_class=Response</code></td>
+<td><code>response={204: None}</code> et <code>Status(204, None)</code></td>
+</tr>
+<tr>
+<td>En-tête <code>Location</code></td>
+<td>paramètre <code>reponse: Response</code></td>
+<td>paramètre <code>response: HttpResponse</code> (même idée, autre type)</td>
+</tr>
+<tr>
+<td>Doublon de code</td>
+<td>vérifié avant l'écriture en mémoire</td>
+<td>garanti par la contrainte <code>unique</code> de la base, interceptée via <code>IntegrityError</code></td>
+</tr>
+<tr>
+<td>Objet renvoyé</td>
+<td>modèle Pydantic</td>
+<td><strong>objet ORM</strong> directement, converti par <code>response=</code></td>
+</tr>
+<tr>
+<td>Introuvable</td>
+<td><code>ErreurApi(404, ...)</code></td>
+<td><code>get_object_or_404</code>, converti par un gestionnaire d'exceptions</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout warn"><div class="callout-title">Piège : les énumérations et l'ORM</div><p><code>donnees.model_dump()</code> laisse <code>niveau</code> sous forme d'objet <code>Niveau.avance</code>. Écrit tel quel dans un champ <code>CharField</code>, un membre d'énumération de type <code>(str, Enum)</code> n'est pas toujours converti en <code>"avance"</code> (selon la version de Python, <code>str(Niveau.avance)</code> renvoie <code>"Niveau.avance"</code>). <code>model_dump(mode="json")</code> renvoie les valeurs simples (<code>"avance"</code>, dates ISO) et supprime le risque. À utiliser <strong>chaque fois</strong> qu'on écrit en base à partir d'un schéma.</p></div>
+<p><strong>Les sessions et l'administration.</strong> Elles complètent le même fichier :</p>
+<div class="code-block"><pre><code class="language-python">@router.get(&quot;/{formation_id}/sessions&quot;, response=PageSessions,
+            summary=&quot;Lister les sessions d'une formation&quot;)
+def lister_sessions(
+    request: HttpRequest,
+    response: HttpResponse,
+    formation_id: uuid.UUID,
+    taille: Query[int, P(alias=&quot;page[size]&quot;, ge=1, le=100)] = 25,
+    apres: Query[str | None, P(alias=&quot;page[after]&quot;)] = None,
+    compter: Query[bool, P(alias=&quot;page[count]&quot;)] = False,
+):
+    def calculer():
+        formation = get_object_or_404(Formation, pk=formation_id)
+        return paginer(formation.sessions.all(), taille, apres, compter, SessionOut)
+
+    return cache_catalogue.lire_ou_calculer(request, response, &quot;sessions&quot;, calculer)
+
+
+@router.post(&quot;/{formation_id}/sessions&quot;, response={201: SessionOut}, auth=JETON,
+             summary=&quot;Planifier une session&quot;)
+@exiger_permission(&quot;catalogue.add_sessionformation&quot;)
+def creer_session(request: HttpRequest, formation_id: uuid.UUID, donnees: SessionIn):
+    formation = get_object_or_404(Formation, pk=formation_id)
+    session = SessionFormation.objects.create(formation=formation, **donnees.model_dump(mode=&quot;json&quot;))
+    cache_catalogue.invalider()
+    return Status(201, session)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><img alt="Cycle de vie d'une requête dans Django-Ninja" src="../contenus/cycle-requete-django-ninja.svg" /></p>
+<h3>5.5 Validation et gestion des erreurs</h3>
+<p>Django-Ninja valide les paramètres comme FastAPI, puis répond avec ses propres formats par défaut :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Source d'erreur</th>
+<th>Réponse par défaut de Django-Ninja</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>validation (<code>ninja.errors.ValidationError</code>)</td>
+<td><code>422</code> et <code>{"detail": [ ... ]}</code></td>
+</tr>
+<tr>
+<td><code>HttpError</code> levée par le code</td>
+<td>statut choisi et <code>{"detail": "&lt;message&gt;"}</code></td>
+</tr>
+<tr>
+<td><code>Http404</code> (par exemple <code>get_object_or_404</code>)</td>
+<td><code>404</code> et <code>{"detail": "Not Found"}</code></td>
+</tr>
+<tr>
+<td><code>AuthenticationError</code></td>
+<td><code>401</code> et <code>{"detail": "Unauthorized"}</code></td>
+</tr>
+<tr>
+<td>exception imprévue, <code>DEBUG=True</code></td>
+<td><code>500</code> et la <strong>trace complète en texte brut</strong></td>
+</tr>
+<tr>
+<td>exception imprévue, <code>DEBUG=False</code></td>
+<td>l'exception remonte au mécanisme d'erreur de Django (page <code>500</code>, journaux, e-mails aux administrateurs)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Comme au jour 2, ces formats sont différents les uns des autres. On installe des <strong>gestionnaires</strong> (<code>@api.exception_handler</code>) qui produisent tous un document Problem Details. Deux particularités à connaître :</p>
+<ul>
+<li>les gestionnaires sont enregistrés <strong>par instance</strong> de <code>NinjaAPI</code> ; un <code>Router</code> n'en possède pas ;</li>
+<li>une URL qui ne correspond à aucune opération n'atteint jamais Ninja : c'est Django qui répond. On personnalise alors <code>handler404</code> dans l'<code>urls.py</code> du projet. Django n'utilise ce gestionnaire que si <code>DEBUG=False</code>.</li>
+</ul>
+<div class="code-block"><pre><code class="language-python"># catalogue/erreurs.py
+import logging
+import uuid
+from http import HTTPStatus
+
+from django.http import Http404, HttpRequest, JsonResponse
+from ninja import NinjaAPI
+from ninja.errors import HttpError, ValidationError
+
+journal = logging.getLogger(&quot;catalogue&quot;)
+
+SOURCES = {&quot;body&quot;, &quot;query&quot;, &quot;path&quot;, &quot;header&quot;, &quot;cookie&quot;, &quot;form&quot;, &quot;file&quot;}
+PARAMETRES_DE_CORPS = {&quot;donnees&quot;, &quot;changements&quot;}     # noms des paramètres de corps des routes
+
+
+class ErreurApi(Exception):
+    def __init__(self, status: int, code: str, detail: str,
+                 erreurs: list[dict] | None = None,
+                 headers: dict[str, str] | None = None) -&gt; None:
+        super().__init__(detail)
+        self.status = status
+        self.code = code
+        self.detail = detail
+        self.erreurs = erreurs
+        self.headers = headers
+
+
+def probleme(request: HttpRequest, status: int, code: str, detail: str,
+             erreurs: list[dict] | None = None,
+             headers: dict[str, str] | None = None) -&gt; JsonResponse:
+    corps = {
+        &quot;type&quot;: f&quot;https://api-catalogue.example/erreurs#{code}&quot;,
+        &quot;title&quot;: HTTPStatus(status).phrase,
+        &quot;status&quot;: status,
+        &quot;code&quot;: code,
+        &quot;detail&quot;: detail,
+        &quot;instance&quot;: request.path,
+        &quot;request_id&quot;: str(uuid.uuid4()),
+    }
+    if erreurs:
+        corps[&quot;errors&quot;] = erreurs
+    reponse = JsonResponse(corps, status=status, content_type=&quot;application/problem+json&quot;)
+    for nom, valeur in (headers or {}).items():
+        reponse[nom] = valeur
+    return reponse
+
+
+def pointeur(loc) -&gt; str:
+    morceaux = [str(m) for m in loc]
+    if morceaux and morceaux[0] in SOURCES:
+        morceaux = morceaux[1:]
+    if morceaux and morceaux[0] in PARAMETRES_DE_CORPS:
+        morceaux = morceaux[1:]
+    return &quot;/&quot; + &quot;/&quot;.join(morceaux)
+
+
+def page_introuvable(request: HttpRequest, exception: Exception) -&gt; JsonResponse:
+    return probleme(request, 404, &quot;not_found&quot;, &quot;Ressource introuvable.&quot;)
+
+
+def installer_gestionnaires(api: NinjaAPI) -&gt; None:
+    @api.exception_handler(ErreurApi)
+    def erreur_api(request, exc: ErreurApi):
+        return probleme(request, exc.status, exc.code, exc.detail, exc.erreurs, exc.headers)
+
+    @api.exception_handler(ValidationError)
+    def erreur_validation(request, exc: ValidationError):
+        erreurs = [{&quot;pointer&quot;: pointeur(e[&quot;loc&quot;]), &quot;code&quot;: e[&quot;type&quot;], &quot;detail&quot;: e[&quot;msg&quot;]}
+                   for e in exc.errors]
+        return probleme(request, 422, &quot;validation_failed&quot;,
+                        &quot;Certains champs ne sont pas valides.&quot;, erreurs)
+
+    @api.exception_handler(Http404)
+    def introuvable(request, exc: Http404):
+        return probleme(request, 404, &quot;not_found&quot;, &quot;Ressource introuvable.&quot;)
+
+    @api.exception_handler(HttpError)
+    def erreur_http(request, exc: HttpError):
+        return probleme(request, exc.status_code, &quot;http_error&quot;, str(exc))
+
+    @api.exception_handler(Exception)
+    def erreur_inattendue(request, exc: Exception):
+        journal.exception(&quot;Erreur non gérée sur %s&quot;, request.path)
+        return probleme(request, 500, &quot;internal_error&quot;, &quot;Erreur interne du serveur.&quot;)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Deux subtilités propres à Ninja</strong> :</p>
+<ol>
+<li><strong>Le nom du paramètre de corps apparaît dans <code>loc</code>.</strong> Quand une opération reçoit un schéma en corps (<code>donnees: FormationIn</code>), Ninja peut inclure ce nom dans la localisation d'une erreur (<code>["body", "donnees", "duree_jours"]</code>). La fonction <code>pointeur</code> retire la source (<code>body</code>, <code>query</code>…) puis, si besoin, le nom du paramètre de corps : on obtient dans les deux cas <code>/duree_jours</code>, le pointeur du contrat. <strong>À constater</strong> : les stagiaires affichent <code>exc.errors</code> pendant l'atelier pour voir la structure réelle.</li>
+<li><strong>Le gestionnaire pour <code>Exception</code> masque les erreurs imprévues.</strong> Il doit journaliser la trace côté serveur (<code>journal.exception</code>), sans quoi les erreurs disparaissent des logs. La documentation de Django-Ninja avertit de ce risque.</li>
+</ol>
+<div class="callout warn"><div class="callout-title">Un <code>DEBUG=True</code> oublié en production</div><p>Avec <code>DEBUG=True</code>, Django et Django-Ninja renvoient des traces complètes et des fragments de code dans les réponses. Le gestionnaire <code>Exception</code> ci-dessus supprime l'exposition de la trace pour l'API, mais <strong>il ne remplace pas</strong> la règle absolue : <code>DEBUG=False</code> en production. La section B7 l'impose par construction (<code>DJANGO_PRODUCTION</code>).</p></div>
+<h3>5.6 Authentification BASIC et Bearer</h3>
+<p>Django-Ninja traite l'authentification avec une seule option, <code>auth=</code>, applicable à une opération, un routeur ou toute l'API. L'argument est un <strong>objet appelable</strong> : s'il renvoie une valeur « vraie », elle devient <code>request.auth</code> et l'opération s'exécute ; sinon la réponse est <code>401</code>. Des classes prêtes à l'emploi (<code>HttpBearer</code>, <code>HttpBasicAuth</code>, <code>APIKeyHeader</code>, <code>django_auth</code>…) gèrent la lecture de l'en-tête et publient le schéma de sécurité dans OpenAPI : Swagger UI affiche alors le bouton <strong>Authorize</strong>.</p>
+<p><img alt="Du jeton Bearer aux permissions Django" src="../contenus/jetons-et-permissions.svg" /></p>
+<p><strong>Bearer avec des jetons en base.</strong> Au jour 2, les jetons étaient lus dans l'environnement. Ici ils vivent dans la table <code>ApiToken</code>, rattachés à un utilisateur Django : on peut en créer, en révoquer, en faire expirer, sans redémarrer l'application.</p>
+<div class="code-block"><pre><code class="language-python"># catalogue/securite.py
+from functools import wraps
+
+from django.contrib.auth import authenticate
+from ninja.security import HttpBasicAuth, HttpBearer
+
+from .erreurs import ErreurApi
+from .models import ApiToken, empreinte
+
+
+class BearerJeton(HttpBearer):
+    def __call__(self, request):
+        utilisateur = super().__call__(request)
+        if not utilisateur:       # en-tête absent ou schéma différent de Bearer
+            raise ErreurApi(401, &quot;missing_token&quot;,
+                            &quot;Jeton absent ou schéma d'authentification incorrect.&quot;,
+                            headers={&quot;WWW-Authenticate&quot;: &quot;Bearer&quot;})
+        return utilisateur
+
+    def authenticate(self, request, token):
+        jeton = (ApiToken.objects.select_related(&quot;utilisateur&quot;)
+                 .filter(empreinte=empreinte(token), revoque=False).first())
+        if jeton is None or jeton.est_expire() or not jeton.utilisateur.is_active:
+            raise ErreurApi(401, &quot;invalid_token&quot;, &quot;Jeton invalide.&quot;,
+                            headers={&quot;WWW-Authenticate&quot;: 'Bearer error=&quot;invalid_token&quot;'})
+        return jeton.utilisateur
+
+
+class BasicAdmin(HttpBasicAuth):
+    def __call__(self, request):
+        utilisateur = super().__call__(request)
+        if not utilisateur:
+            raise ErreurApi(401, &quot;invalid_credentials&quot;, &quot;Identifiant ou mot de passe incorrect.&quot;,
+                            headers={&quot;WWW-Authenticate&quot;: 'Basic realm=&quot;admin&quot;'})
+        return utilisateur
+
+    def authenticate(self, request, username, password):
+        utilisateur = authenticate(request, username=username, password=password)
+        if utilisateur is not None and utilisateur.is_staff:
+            return utilisateur
+        return None
+
+
+JETON = BearerJeton()
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Points à faire repérer :</p>
+<ul>
+<li><strong>La redéfinition de <code>__call__</code></strong> transforme les cas « en-tête absent » en erreurs au format du contrat (<code>missing_token</code>, avec <code>WWW-Authenticate</code>). Sans elle, Django-Ninja répond <code>401</code> avec <code>{"detail": "Unauthorized"}</code> et sans indication du schéma attendu.</li>
+<li>Le jeton reçu n'est <strong>jamais comparé en clair</strong> : on calcule son empreinte et on interroge la base sur la colonne <code>empreinte</code> (unique, indexée). La recherche par index d'une empreinte de 256 bits ne laisse pas fuiter d'information utilisable sur le jeton.</li>
+<li><strong>BASIC passe par <code>django.contrib.auth.authenticate</code></strong> : les mots de passe sont vérifiés avec les algorithmes de hachage de Django (volontairement lents), les comptes inactifs sont refusés, et le même message sert pour un identifiant inconnu ou un mot de passe erroné.</li>
+<li>La route d'administration exige en plus <code>is_staff</code> : un utilisateur ordinaire, même authentifié, reçoit <code>401</code> (un <code>403</code> donnerait à un attaquant la confirmation que le compte existe).</li>
+</ul>
+<p><strong>Alternatives intégrées à Django-Ninja</strong> (à citer, pas à réaliser) : <code>APIKeyHeader</code> (clé dans un en-tête personnalisé), <code>django_auth</code> (session Django, avec contrôle CSRF puisque le navigateur envoie le cookie automatiquement), <code>django_auth_is_staff</code>, ou une liste <code>auth=[A(), B()]</code> qui accepte la première méthode valide.</p>
+<h3>5.7 Les droits dans Django : groupes et permissions</h3>
+<p>L'<strong>authentification</strong> répond à « qui êtes-vous ? ». Les <strong>droits</strong> répondent à « que pouvez-vous faire ? ». Django les gère depuis ses origines :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Rôle</th>
+<th>Exemple</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Permission</strong></td>
+<td>autorisation d'une action sur un modèle ; créées automatiquement après <code>migrate</code> (<code>add_</code>, <code>change_</code>, <code>delete_</code>, <code>view_</code> + nom du modèle)</td>
+<td><code>catalogue.add_formation</code></td>
+</tr>
+<tr>
+<td><strong>Groupe</strong></td>
+<td>ensemble de permissions que l'on affecte en une fois à des utilisateurs</td>
+<td><code>editeurs-catalogue</code></td>
+</tr>
+<tr>
+<td><strong>Utilisateur</strong></td>
+<td>possède des groupes et, éventuellement, des permissions directes ; <code>is_superuser</code> contourne tout</td>
+<td><code>service-editeur</code></td>
+</tr>
+<tr>
+<td><strong>Vérification</strong></td>
+<td><code>utilisateur.has_perm("catalogue.add_formation")</code></td>
+<td><code>True</code> ou <code>False</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Les droits s'appliquent à l'<strong>action métier</strong> (ajouter une formation), pas à l'URL. L'administration Django les utilise déjà : un utilisateur du groupe <code>lecteurs-catalogue</code> y verrait les formations sans pouvoir les modifier. L'API et l'administration partagent donc <strong>la même politique de droits</strong>, ce que FastAPI n'offre pas d'office.</p>
+<p><strong>Un décorateur d'opération</strong> contrôle la permission après l'authentification, quand <code>request.auth</code> est connu. Placé sous le décorateur de route et écrit avec <code>@wraps</code> (qui conserve la signature de la fonction), il laisse Django-Ninja lire les paramètres normalement.</p>
+<div class="code-block"><pre><code class="language-python"># catalogue/securite.py (suite)
+def exiger_permission(permission: str):
+    def decorateur(func):
+        @wraps(func)
+        def enveloppe(request, *args, **kwargs):
+            if not request.auth.has_perm(permission):
+                raise ErreurApi(403, &quot;insufficient_scope&quot;,
+                                f&quot;La permission {permission} est requise.&quot;,
+                                headers={&quot;WWW-Authenticate&quot;: 'Bearer error=&quot;insufficient_scope&quot;'})
+            return func(request, *args, **kwargs)
+        return enveloppe
+    return decorateur
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Ordre d'exécution à retenir (documentation de Django-Ninja) :</p>
+<ol>
+<li>l'authentification (<code>auth=</code>) ;</li>
+<li>la validation des paramètres et du corps ;</li>
+<li>les décorateurs d'<strong>opération</strong>, dont <code>exiger_permission</code> ;</li>
+<li>la fonction d'opération.</li>
+</ol>
+<p>Un décorateur de mode <strong>vue</strong> (<code>@decorate_view</code>) s'exécute <strong>avant</strong> l'authentification : il ne peut pas lire <code>request.auth</code>. C'est la raison pour laquelle le contrôle des droits est écrit en mode opération.</p>
+<p><strong>Groupes, utilisateurs de service et jetons : une commande de gestion.</strong> Elle rend la configuration des droits reproductible : on la rejoue dans n'importe quel environnement.</p>
+<div class="code-block"><pre><code class="language-python"># catalogue/management/commands/initialiser_catalogue.py
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group, Permission
+from django.core.management.base import BaseCommand
+from django.db import transaction
+
+from catalogue.models import ApiToken
+
+MODELES = (&quot;formation&quot;, &quot;sessionformation&quot;)
+
+
+class Command(BaseCommand):
+    help = &quot;Crée les groupes, deux utilisateurs de service et leurs jetons (affichés une seule fois).&quot;
+
+    @transaction.atomic
+    def handle(self, *args, **options):
+        utilisateurs = get_user_model()
+        editeurs, _ = Group.objects.get_or_create(name=&quot;editeurs-catalogue&quot;)
+        lecteurs, _ = Group.objects.get_or_create(name=&quot;lecteurs-catalogue&quot;)
+
+        droits = Permission.objects.filter(content_type__app_label=&quot;catalogue&quot;)
+        editeurs.permissions.set(
+            droits.filter(codename__regex=rf&quot;^(add|change|delete|view)_({'|'.join(MODELES)})$&quot;))
+        lecteurs.permissions.set(
+            droits.filter(codename__regex=rf&quot;^view_({'|'.join(MODELES)})$&quot;))
+
+        for nom, groupe in ((&quot;service-editeur&quot;, editeurs), (&quot;service-lecteur&quot;, lecteurs)):
+            utilisateur, _ = utilisateurs.objects.get_or_create(username=nom)
+            utilisateur.set_unusable_password()
+            utilisateur.save()
+            utilisateur.groups.add(groupe)
+            _, jeton = ApiToken.generer(utilisateur, nom=&quot;atelier&quot;)
+            self.stdout.write(f&quot;{nom} : {jeton}&quot;)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-bash">python manage.py initialiser_catalogue
+# service-editeur : &lt;jeton à copier dans CATALOGUE_TOKEN_ECRITURE&gt;
+# service-lecteur : &lt;jeton à copier dans CATALOGUE_TOKEN_LECTURE&gt;
+python manage.py createsuperuser        # compte staff pour la route BASIC
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Les jetons sont à recopier dans <code>.env</code> sous <strong>les mêmes noms de variables qu'au jour 2</strong> (<code>CATALOGUE_TOKEN_ECRITURE</code>, <code>CATALOGUE_TOKEN_LECTURE</code>) : <code>verifier_avec_client.py</code> fonctionnera alors sans modification.</p>
+<h3>5.8 La mise en cache avec Redis ou Memcached</h3>
+<p><strong>Pourquoi un cache ?</strong> Une API publique est lue bien plus souvent qu'elle n'est modifiée. Servir une réponse déjà calculée évite des requêtes SQL, du travail de sérialisation et de la latence. Le prix : un risque de <strong>données périmées</strong> si l'on ne gère pas l'<strong>invalidation</strong>.</p>
+<p><strong>Le cache de Django</strong> est un service unique, <code>django.core.cache.cache</code>, derrière lequel on branche des moteurs interchangeables :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Moteur</th>
+<th><code>BACKEND</code></th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>mémoire locale</td>
+<td><code>django.core.cache.backends.locmem.LocMemCache</code></td>
+<td>développement et tests ; <strong>un cache par processus</strong>, non partagé</td>
+</tr>
+<tr>
+<td><strong>Redis</strong></td>
+<td><code>django.core.cache.backends.redis.RedisCache</code></td>
+<td>production ; partagé entre les processus et les machines, peut persister ; nécessite le paquet <code>redis</code></td>
+</tr>
+<tr>
+<td><strong>Memcached</strong></td>
+<td><code>django.core.cache.backends.memcached.PyMemcacheCache</code></td>
+<td>production ; très rapide, uniquement en mémoire ; nécessite le paquet <code>pymemcache</code></td>
+</tr>
+<tr>
+<td>base de données, fichiers</td>
+<td><code>DatabaseCache</code>, <code>FileBasedCache</code></td>
+<td>cas particuliers</td>
+</tr>
+</tbody>
+</table></div>
+<div class="code-block"><pre><code class="language-bash"># services de test locaux, si Docker est disponible
+docker run --name redis-catalogue -p 6379:6379 -d redis:7
+docker run --name memcached-catalogue -p 11211:11211 -d memcached:1.6
+pip install redis pymemcache
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Configuration dans <code>settings.py</code></strong> : le moteur se choisit par variable d'environnement, sans changer le code.</p>
+<div class="code-block"><pre><code class="language-python">CACHE_BACKEND = os.getenv(&quot;CACHE_BACKEND&quot;, &quot;locmem&quot;)
+
+if CACHE_BACKEND == &quot;redis&quot;:
+    CACHES = {&quot;default&quot;: {
+        &quot;BACKEND&quot;: &quot;django.core.cache.backends.redis.RedisCache&quot;,
+        &quot;LOCATION&quot;: os.environ[&quot;CACHE_URL&quot;],              # redis://127.0.0.1:6379
+        &quot;KEY_PREFIX&quot;: &quot;catalogue&quot;,
+    }}
+elif CACHE_BACKEND == &quot;memcached&quot;:
+    CACHES = {&quot;default&quot;: {
+        &quot;BACKEND&quot;: &quot;django.core.cache.backends.memcached.PyMemcacheCache&quot;,
+        &quot;LOCATION&quot;: os.environ[&quot;CACHE_URL&quot;],              # 127.0.0.1:11211
+        &quot;KEY_PREFIX&quot;: &quot;catalogue&quot;,
+    }}
+else:
+    CACHES = {&quot;default&quot;: {&quot;BACKEND&quot;: &quot;django.core.cache.backends.locmem.LocMemCache&quot;}}
+
+if os.getenv(&quot;POSTGRES_DB&quot;):
+    DATABASES = {&quot;default&quot;: {
+        &quot;ENGINE&quot;: &quot;django.db.backends.postgresql&quot;,
+        &quot;NAME&quot;: os.environ[&quot;POSTGRES_DB&quot;],
+        &quot;USER&quot;: os.environ[&quot;POSTGRES_USER&quot;],
+        &quot;PASSWORD&quot;: os.environ[&quot;POSTGRES_PASSWORD&quot;],
+        &quot;HOST&quot;: os.getenv(&quot;POSTGRES_HOST&quot;, &quot;db&quot;),
+        &quot;PORT&quot;: os.getenv(&quot;POSTGRES_PORT&quot;, &quot;5432&quot;),
+        &quot;CONN_MAX_AGE&quot;: 60,
+    }}
+else:
+    DATABASES = {&quot;default&quot;: {&quot;ENGINE&quot;: &quot;django.db.backends.sqlite3&quot;,
+                             &quot;NAME&quot;: BASE_DIR / &quot;db.sqlite3&quot;}}
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="callout warn"><div class="callout-title">Le cache local est un cache par processus</div><p>Avec <code>LocMemCache</code>, chaque processus Gunicorn possède <strong>son propre cache</strong>. Une invalidation faite dans un processus n'est pas vue par les autres : c'est exactement le piège des « plusieurs workers » rencontré avec le stockage en mémoire de FastAPI. Redis et Memcached sont des <strong>services partagés</strong>, donc cohérents entre processus.</p></div>
+<p><strong>Deux stratégies de cache pour une API :</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Stratégie</th>
+<th>Principe</th>
+<th>Avantages</th>
+<th>Limites</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Cache de vue</strong> (<code>cache_page</code>)</td>
+<td>met en cache la réponse HTTP entière pendant N secondes</td>
+<td>une ligne de code</td>
+<td>pas d'invalidation fine ; ne tient pas compte de l'identité de l'appelant</td>
+</tr>
+<tr>
+<td><strong>Cache applicatif</strong> (<code>cache.get</code> / <code>cache.set</code>)</td>
+<td>met en cache le résultat calculé, avec une clé que l'on maîtrise</td>
+<td>invalidation précise, données partageables</td>
+<td>un peu de code</td>
+</tr>
+</tbody>
+</table></div>
+<p>Le cache de vue se branche avec <code>decorate_view</code>, qui adapte un décorateur Django à une opération Ninja :</p>
+<div class="code-block"><pre><code class="language-python">from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_headers
+from ninja.decorators import decorate_view
+
+@router.get(&quot;/exemple-public&quot;)
+@decorate_view(cache_page(60), vary_on_headers(&quot;Authorization&quot;))
+def exemple(request): ...
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="callout danger"><div class="callout-title">Un cache de vue ignore qui appelle</div><p>Sans <code>vary_on_headers("Authorization")</code>, la réponse mise en cache pour un utilisateur peut être <strong>servie à un autre</strong> : fuite de données. Le cache de vue convient à du contenu strictement public. Pour l'API Catalogue, la lecture est publique, mais on préfère le <strong>cache applicatif</strong> : il permet d'invalider les entrées dès qu'une formation change, ce que <code>cache_page</code> ne sait pas faire (il attend l'expiration).</p></div>
+<p><strong>Le cache applicatif avec invalidation par version de clé.</strong> Un compteur <code>catalogue:version</code> entre dans toutes les clés. Chaque écriture l'incrémente : toutes les anciennes entrées deviennent inaccessibles en une seule opération, sans avoir à les énumérer, et disparaissent à l'expiration.</p>
+<p><img alt="Invalider un cache par version de clé" src="../contenus/cache-versionne.svg" /></p>
+<div class="code-block"><pre><code class="language-python"># catalogue/cache_catalogue.py
+import hashlib
+from collections.abc import Callable
+from typing import Any
+
+from django.core.cache import cache
+from django.http import HttpRequest, HttpResponse
+
+CLE_VERSION = &quot;catalogue:version&quot;
+DUREE = 60      # secondes
+
+
+def _version() -&gt; int:
+    cache.add(CLE_VERSION, 1, timeout=None)       # ne fait rien si la clé existe déjà
+    return cache.get(CLE_VERSION, 1)
+
+
+def _cle(request: HttpRequest, prefixe: str) -&gt; str:
+    empreinte_url = hashlib.sha256(request.get_full_path().encode()).hexdigest()[:32]
+    return f&quot;{prefixe}:v{_version()}:{empreinte_url}&quot;
+
+
+def invalider() -&gt; None:
+    cache.add(CLE_VERSION, 1, timeout=None)
+    cache.incr(CLE_VERSION)                        # atomique sur Redis et Memcached
+
+
+def lire_ou_calculer(request: HttpRequest, response: HttpResponse, prefixe: str,
+                     calcul: Callable[[], Any]) -&gt; Any:
+    cle = _cle(request, prefixe)
+    valeur = cache.get(cle)
+    if valeur is None:
+        response[&quot;X-Cache&quot;] = &quot;MISS&quot;
+        valeur = calcul()                           # une exception (404…) n'est jamais mise en cache
+        cache.set(cle, valeur, DUREE)
+    else:
+        response[&quot;X-Cache&quot;] = &quot;HIT&quot;
+    return valeur
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Les choix à faire expliquer :</p>
+<ul>
+<li>la <strong>clé contient l'empreinte de l'URL complète</strong> (filtres, tri, curseur) : chaque combinaison a son entrée, et la clé reste courte et sans caractère interdit. Memcached limite les clés à 250 caractères et refuse les espaces ;</li>
+<li><code>DUREE = 60</code> est un <strong>filet de sécurité</strong>, pas le mécanisme principal : si une écriture arrive par un autre chemin (administration, script), les données restent périmées au plus 60 secondes ;</li>
+<li>l'en-tête <code>X-Cache: HIT</code> ou <code>MISS</code> rend le comportement <strong>observable</strong> par les stagiaires et par les tests ;</li>
+<li>seules les réponses réussies sont stockées : une erreur levée dans <code>calcul()</code> interrompt la fonction avant <code>cache.set</code>.</li>
+</ul>
+<div class="callout note"><div class="callout-title">Analogie : l'annuaire de l'entreprise</div><p>L'annuaire papier est tiré chaque mois : le consulter est instantané mais il peut être périmé. À chaque changement important, on ne réécrit pas les anciennes pages, on diffuse la nouvelle édition (v2) et on jette l'ancienne. La clé versionnée procède de même.</p></div>
+<p><strong>Quelques règles pour décider de ce qu'on met en cache :</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Mettre en cache</th>
+<th>Ne pas mettre en cache</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>lectures publiques fréquentes (catalogue, référentiels)</td>
+<td>données propres à un utilisateur (sauf clé qui l'identifie)</td>
+</tr>
+<tr>
+<td>résultats de calculs coûteux</td>
+<td>écritures, jetons, mots de passe</td>
+</tr>
+<tr>
+<td>réponses identiques pour tous</td>
+<td>réponses qui doivent refléter l'état exact à la seconde</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+</div>
+
+<div id="tab-b6-bloc-5-atelier-90-min" class="tab-content">
+<h3>🛠️ Atelier 3 — Créer un service web avec Django-Ninja</h3>
+<p><strong>Contexte.</strong> L'équipe qui exploite l'API Catalogue est déjà très à l'aise avec Django : modèles, administration, groupes d'utilisateurs. Elle veut que le catalogue vive dans cet écosystème, <strong>sans que les consommateurs aient à changer une ligne</strong> de leur code. Les stagiaires livrent la même API sous Django-Ninja, puis prouvent la conformité avec le client du jour 1.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Étape</th>
+<th>Contenu</th>
+<th>Durée</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Projet Django, réglages, base et cache, migrations</td>
+<td>15 min</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Modèles, schémas, erreurs, pagination, cache, routes (code de B5)</td>
+<td>25 min</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Sécurité : jetons en base, droits Django, route BASIC, commande d'initialisation</td>
+<td>15 min</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Tests <code>pytest-django</code></td>
+<td>20 min</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Scénario de conformité avec <code>catalogue_client</code> et comparaison des deux API</td>
+<td>15 min</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout tip"><div class="callout-title">Méthode de travail</div><p>Le code de B5 est déjà écrit pendant la séance guidée : l'atelier consiste à l'<strong>assembler, le faire tourner et le prouver</strong>. Chaque étape se termine par un point de contrôle. Si un point de contrôle échoue plus de 5 minutes, ouvrir le corrigé de l'étape.</p></div>
+<h4>Étape 1 — Réglages complets et variables d'environnement (15 min)</h4>
+<p><strong>Compléter <code>config/settings.py</code></strong> avec le bloc production, la journalisation et la suite décrite en B5 (base, cache) :</p>
+<div class="code-block"><pre><code class="language-python">if PRODUCTION:
+    SECURE_PROXY_SSL_HEADER = (&quot;HTTP_X_FORWARDED_PROTO&quot;, &quot;https&quot;)
+    SECURE_SSL_REDIRECT = env_bool(&quot;DJANGO_SSL_REDIRECT&quot;, True)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = int(os.getenv(&quot;DJANGO_HSTS_SECONDS&quot;, &quot;0&quot;))
+    CSRF_TRUSTED_ORIGINS = [o for o in os.getenv(&quot;DJANGO_CSRF_TRUSTED_ORIGINS&quot;, &quot;&quot;).split(&quot;,&quot;) if o]
+
+LOGGING = {
+    &quot;version&quot;: 1,
+    &quot;disable_existing_loggers&quot;: False,
+    &quot;handlers&quot;: {&quot;console&quot;: {&quot;class&quot;: &quot;logging.StreamHandler&quot;}},
+    &quot;root&quot;: {&quot;handlers&quot;: [&quot;console&quot;], &quot;level&quot;: os.getenv(&quot;DJANGO_LOG_LEVEL&quot;, &quot;INFO&quot;)},
+}
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Le fichier <code>settings.py</code> généré par <code>startproject</code> fournit déjà <code>ROOT_URLCONF</code>, <code>WSGI_APPLICATION</code>, <code>TEMPLATES</code> et <code>AUTH_PASSWORD_VALIDATORS</code> : on les conserve tels quels. Le bloc <code>if PRODUCTION:</code> n'est actif que lorsque <code>DJANGO_PRODUCTION=true</code> : en développement et en test, rien ne force HTTPS.</p>
+<p><strong>Variables à ajouter à <code>.env</code></strong> (le fichier reste ignoré par Git) :</p>
+<div class="code-block"><pre><code class="language-bash"># .env (ajouts du jour 3)
+DJANGO_DEBUG=true
+# remplis plus loin par la commande initialiser_catalogue :
+CATALOGUE_TOKEN_ECRITURE=
+CATALOGUE_TOKEN_LECTURE=
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="callout note"><div class="callout-title">Pourquoi réutiliser les noms du jour 2 ?</div><p><code>verifier_avec_client.py</code> lit <code>CATALOGUE_TOKEN_ECRITURE</code> et <code>CATALOGUE_TOKEN_LECTURE</code>. Les remplir avec les jetons générés par Django permet de rejouer le script <strong>tel quel</strong>. Les jetons de l'API FastAPI et ceux de l'API Django ne sont pas interchangeables, mais ils portent la même étiquette.</p></div>
+<p><strong>Point de contrôle</strong></p>
+<ul>
+<li>[ ] <code>python manage.py check</code> signale « no issues » ;</li>
+<li>[ ] <code>python manage.py migrate</code> s'exécute et crée <code>db.sqlite3</code> dans <code>django_api/</code> ;</li>
+<li>[ ] <code>git status</code> ne montre ni <code>.env</code> ni <code>db.sqlite3</code> (ajouter <code>db.sqlite3</code> et <code>staticfiles/</code> au <code>.gitignore</code>).</li>
+</ul>
+<h4>Étape 2 — Assembler l'API (25 min)</h4>
+<p>Créer les fichiers de B5 : <code>enums.py</code>, <code>models.py</code>, <code>admin.py</code>, <code>schemas.py</code>, <code>erreurs.py</code>, <code>pagination.py</code>, <code>cache_catalogue.py</code>, <code>routes/formations.py</code>. Il reste à écrire trois fichiers courts.</p>
+<p><strong>Corrigé — <code>catalogue/routes/__init__.py</code></strong> : fichier vide.</p>
+<p><strong>Corrigé — <code>catalogue/routes/statistiques.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">from django.http import HttpRequest
+from ninja import Router
+
+from ..models import Formation, SessionFormation
+from ..schemas import Statistiques
+from ..securite import BasicAdmin
+
+router = Router(tags=[&quot;administration&quot;])
+
+
+@router.get(&quot;/statistiques&quot;, response=Statistiques, auth=BasicAdmin(),
+            summary=&quot;Statistiques du catalogue&quot;)
+def statistiques(request: HttpRequest):
+    return {
+        &quot;formations&quot;: Formation.objects.count(),
+        &quot;sessions&quot;: SessionFormation.objects.count(),
+        &quot;demandeur&quot;: request.auth.get_username(),
+    }
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Corrigé — <code>catalogue/api.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">from ninja import NinjaAPI
+
+from .erreurs import installer_gestionnaires
+from .routes import formations, statistiques
+
+api = NinjaAPI(
+    title=&quot;API Catalogue&quot;,
+    version=&quot;1.0.0&quot;,
+    description=&quot;Catalogue de formations. Les lectures sont publiques ; &quot;
+                &quot;les écritures exigent un jeton Bearer et les permissions Django correspondantes.&quot;,
+    urls_namespace=&quot;catalogue&quot;,
+)
+installer_gestionnaires(api)
+
+api.add_router(&quot;/formations&quot;, formations.router)
+api.add_router(&quot;/admin&quot;, statistiques.router)
+
+
+@api.get(&quot;/sante&quot;, tags=[&quot;technique&quot;], summary=&quot;État du service&quot;)
+def sante(request):
+    return {&quot;statut&quot;: &quot;ok&quot;}
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-bash">python manage.py runserver 8001
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>On utilise le port <code>8001</code> pour garder l'API FastAPI disponible sur <code>8000</code>. La documentation est servie sur <code>http://127.0.0.1:8001/v1/docs</code>.</p>
+<p><strong>Point de contrôle</strong></p>
+<ul>
+<li>[ ] <code>http://127.0.0.1:8001/v1/sante</code> répond <code>{"statut": "ok"}</code> ;</li>
+<li>[ ] <code>/v1/docs</code> affiche les groupes <code>formations</code>, <code>administration</code> et <code>technique</code>, et un bouton <strong>Authorize</strong> ;</li>
+<li>[ ] <code>GET /v1/formations</code> répond <code>200</code> avec une enveloppe <code>data</code> + <code>meta</code> et un en-tête <code>X-Cache</code> ;</li>
+<li>[ ] <code>/v1/openapi.json</code> décrit les mêmes chemins que celui de l'API FastAPI (comparer à l'export du jour 2).</li>
+</ul>
+<h4>Étape 3 — Sécurité et droits (15 min)</h4>
+<p>Créer <code>catalogue/securite.py</code> (sections 5.6 et 5.7) et la commande <code>initialiser_catalogue</code>.</p>
+<div class="code-block"><pre><code class="language-bash">python manage.py initialiser_catalogue
+python manage.py createsuperuser
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Recopier les deux jetons affichés dans <code>.env</code>, puis tester :</p>
+<div class="code-block"><pre><code class="language-bash">curl.exe -i -X POST http://127.0.0.1:8001/v1/formations -H &quot;Content-Type: application/json&quot; -d &quot;{}&quot;
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Résultats attendus</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Appel</th>
+<th>Statut</th>
+<th>Corps (<code>code</code>)</th>
+<th><code>WWW-Authenticate</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /v1/formations</code> sans en-tête</td>
+<td><code>401</code></td>
+<td><code>missing_token</code></td>
+<td><code>Bearer</code></td>
+</tr>
+<tr>
+<td>avec un jeton inventé</td>
+<td><code>401</code></td>
+<td><code>invalid_token</code></td>
+<td><code>Bearer error="invalid_token"</code></td>
+</tr>
+<tr>
+<td>avec le jeton <strong>lecteur</strong></td>
+<td><code>403</code></td>
+<td><code>insufficient_scope</code></td>
+<td><code>Bearer error="insufficient_scope"</code></td>
+</tr>
+<tr>
+<td>avec le jeton <strong>éditeur</strong> et un corps valide</td>
+<td><code>201</code></td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>GET /v1/admin/statistiques</code> sans identifiants</td>
+<td><code>401</code></td>
+<td><code>invalid_credentials</code></td>
+<td><code>Basic realm="admin"</code></td>
+</tr>
+<tr>
+<td>avec le compte <code>staff</code> créé par <code>createsuperuser</code></td>
+<td><code>200</code></td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<p>Ouvrir ensuite <code>http://127.0.0.1:8001/admin/</code> : le groupe <code>lecteurs-catalogue</code> n'a que les droits <code>view_*</code> ; dans l'administration, l'utilisateur <code>service-lecteur</code> ne pourrait donc pas modifier une formation. La politique de droits est unique, qu'on passe par l'API ou par l'administration.</p>
+<h4>Étape 4 — Tests (20 min)</h4>
+<p><strong>Corrigé — <code>django_api/pytest.ini</code></strong></p>
+<div class="code-block"><pre><code class="language-ini">[pytest]
+DJANGO_SETTINGS_MODULE = config.settings
+pythonpath = .
+python_files = test_*.py
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Corrigé — <code>django_api/tests/test_api_django.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">import base64
+
+import pytest
+from django.contrib.auth.models import Permission, User
+from django.core.cache import cache
+
+from catalogue.models import ApiToken
+
+URL = &quot;/v1/formations&quot;
+FORMATION = {&quot;code&quot;: &quot;PYT100614-F&quot;, &quot;titre&quot;: &quot;Python Avancé : Web Services&quot;,
+             &quot;duree_jours&quot;: 3, &quot;niveau&quot;: &quot;avance&quot;}
+DROITS_EDITEUR = [&quot;add_formation&quot;, &quot;change_formation&quot;, &quot;delete_formation&quot;,
+                  &quot;add_sessionformation&quot;]
+
+
+@pytest.fixture(autouse=True)
+def cache_vide():
+    cache.clear()
+    yield
+    cache.clear()
+
+
+def creer_acces(nom: str, droits: list[str]) -&gt; dict[str, str]:
+    utilisateur = User.objects.create_user(nom, password=&quot;mdp-de-test&quot;)
+    utilisateur.user_permissions.set(
+        Permission.objects.filter(content_type__app_label=&quot;catalogue&quot;, codename__in=droits))
+    _, jeton = ApiToken.generer(utilisateur, nom=&quot;test&quot;)
+    return {&quot;HTTP_AUTHORIZATION&quot;: f&quot;Bearer {jeton}&quot;}
+
+
+@pytest.fixture()
+def ecriture(db):
+    return creer_acces(&quot;editeur&quot;, DROITS_EDITEUR)
+
+
+@pytest.fixture()
+def lecture(db):
+    return creer_acces(&quot;lecteur&quot;, [&quot;view_formation&quot;])
+
+
+def envoyer(client, methode, url, donnees=None, entetes=None):
+    return getattr(client, methode)(url, data=donnees, content_type=&quot;application/json&quot;,
+                                    **(entetes or {}))
+
+
+def test_liste_publique_et_vide(client, db):
+    r = client.get(URL)
+    assert r.status_code == 200
+    assert r.json() == {&quot;data&quot;: [], &quot;meta&quot;: {&quot;has_more&quot;: False, &quot;next_cursor&quot;: None, &quot;total&quot;: None}}
+
+
+def test_creation_sans_jeton_refusee(client, db):
+    r = envoyer(client, &quot;post&quot;, URL, FORMATION)
+    assert r.status_code == 401
+    assert r[&quot;WWW-Authenticate&quot;] == &quot;Bearer&quot;
+    assert r[&quot;Content-Type&quot;].startswith(&quot;application/problem+json&quot;)
+    assert r.json()[&quot;code&quot;] == &quot;missing_token&quot;
+
+
+def test_jeton_inconnu_ou_revoque(client, ecriture):
+    r = envoyer(client, &quot;post&quot;, URL, FORMATION, {&quot;HTTP_AUTHORIZATION&quot;: &quot;Bearer inconnu&quot;})
+    assert r.status_code == 401 and r.json()[&quot;code&quot;] == &quot;invalid_token&quot;
+    ApiToken.objects.update(revoque=True)
+    r = envoyer(client, &quot;post&quot;, URL, FORMATION, ecriture)
+    assert r.status_code == 401 and r.json()[&quot;code&quot;] == &quot;invalid_token&quot;
+
+
+def test_jeton_sans_la_permission(client, lecture):
+    r = envoyer(client, &quot;post&quot;, URL, FORMATION, lecture)
+    assert r.status_code == 403
+    assert r.json()[&quot;code&quot;] == &quot;insufficient_scope&quot;
+
+
+def test_creation_puis_lecture(client, ecriture):
+    r = envoyer(client, &quot;post&quot;, URL, FORMATION, ecriture)
+    assert r.status_code == 201
+    formation = r.json()
+    assert r[&quot;Location&quot;].endswith(f&quot;{URL}/{formation['id']}&quot;)
+    assert client.get(f&quot;{URL}/{formation['id']}&quot;).json() == formation
+
+
+def test_doublon_de_code(client, ecriture):
+    envoyer(client, &quot;post&quot;, URL, FORMATION, ecriture)
+    r = envoyer(client, &quot;post&quot;, URL, FORMATION, ecriture)
+    assert r.status_code == 409
+    assert r.json()[&quot;code&quot;] == &quot;code_deja_utilise&quot;
+
+
+def test_validation_renvoie_les_erreurs_par_champ(client, ecriture):
+    r = envoyer(client, &quot;post&quot;, URL, {**FORMATION, &quot;duree_jours&quot;: 99}, ecriture)
+    assert r.status_code == 422
+    assert r.json()[&quot;errors&quot;][0][&quot;pointer&quot;] == &quot;/duree_jours&quot;
+
+
+def test_patch_partiel_et_champs_interdits(client, ecriture):
+    formation = envoyer(client, &quot;post&quot;, URL, FORMATION, ecriture).json()
+    url = f&quot;{URL}/{formation['id']}&quot;
+    r = envoyer(client, &quot;patch&quot;, url, {&quot;duree_jours&quot;: 4}, ecriture)
+    assert r.status_code == 200
+    assert r.json()[&quot;duree_jours&quot;] == 4 and r.json()[&quot;titre&quot;] == FORMATION[&quot;titre&quot;]
+    assert envoyer(client, &quot;patch&quot;, url, {&quot;code&quot;: &quot;AUT100000-X&quot;}, ecriture).status_code == 422
+    assert envoyer(client, &quot;patch&quot;, url, {&quot;titre&quot;: None}, ecriture).status_code == 422
+
+
+def test_suppression_puis_404(client, ecriture):
+    formation = envoyer(client, &quot;post&quot;, URL, FORMATION, ecriture).json()
+    url = f&quot;{URL}/{formation['id']}&quot;
+    assert client.delete(url, **ecriture).status_code == 204
+    r = client.get(url)
+    assert r.status_code == 404
+    assert r.json()[&quot;code&quot;] == &quot;not_found&quot;
+
+
+def test_pagination_par_curseur(client, ecriture):
+    for i in range(3):
+        envoyer(client, &quot;post&quot;, URL, {**FORMATION, &quot;code&quot;: f&quot;PYT10061{i}-F&quot;}, ecriture)
+    p1 = client.get(URL, {&quot;page[size]&quot;: 2}).json()
+    assert len(p1[&quot;data&quot;]) == 2 and p1[&quot;meta&quot;][&quot;has_more&quot;] is True
+    p2 = client.get(URL, {&quot;page[size]&quot;: 2, &quot;page[after]&quot;: p1[&quot;meta&quot;][&quot;next_cursor&quot;]}).json()
+    assert len(p2[&quot;data&quot;]) == 1 and p2[&quot;meta&quot;][&quot;has_more&quot;] is False
+
+
+def test_curseur_invalide(client, db):
+    assert client.get(URL, {&quot;page[after]&quot;: &quot;pas-un-curseur&quot;}).status_code == 400
+
+
+def test_cache_hit_puis_invalidation(client, ecriture):
+    assert client.get(URL)[&quot;X-Cache&quot;] == &quot;MISS&quot;
+    assert client.get(URL)[&quot;X-Cache&quot;] == &quot;HIT&quot;
+    envoyer(client, &quot;post&quot;, URL, FORMATION, ecriture)
+    r = client.get(URL)
+    assert r[&quot;X-Cache&quot;] == &quot;MISS&quot;
+    assert len(r.json()[&quot;data&quot;]) == 1
+
+
+def test_session_dans_le_passe_refusee(client, ecriture):
+    formation = envoyer(client, &quot;post&quot;, URL, FORMATION, ecriture).json()
+    r = envoyer(client, &quot;post&quot;, f&quot;{URL}/{formation['id']}/sessions&quot;,
+                {&quot;date_debut&quot;: &quot;2020-01-06&quot;, &quot;lieu&quot;: &quot;Paris&quot;, &quot;places&quot;: 8}, ecriture)
+    assert r.status_code == 422
+    assert r.json()[&quot;errors&quot;][0][&quot;pointer&quot;] == &quot;/date_debut&quot;
+
+
+def test_admin_basic(client, db):
+    User.objects.create_user(&quot;admin&quot;, password=&quot;mdp-de-test&quot;, is_staff=True)
+
+    def basic(mot_de_passe: str) -&gt; dict[str, str]:
+        brut = base64.b64encode(f&quot;admin:{mot_de_passe}&quot;.encode()).decode()
+        return {&quot;HTTP_AUTHORIZATION&quot;: f&quot;Basic {brut}&quot;}
+
+    url = &quot;/v1/admin/statistiques&quot;
+    assert client.get(url).status_code == 401
+    assert client.get(url, **basic(&quot;faux&quot;)).status_code == 401
+    r = client.get(url, **basic(&quot;mdp-de-test&quot;))
+    assert r.status_code == 200 and r.json()[&quot;demandeur&quot;] == &quot;admin&quot;
+
+
+def test_route_inconnue_au_format_problem_details(client, db):
+    r = client.get(&quot;/v1/nexiste-pas&quot;)
+    assert r.status_code == 404
+    assert r[&quot;Content-Type&quot;].startswith(&quot;application/problem+json&quot;)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-bash">cd django_api
+python -m pytest -q
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Point de contrôle</strong></p>
+<ul>
+<li>[ ] la suite passe entièrement ; sinon, lire le premier échec <strong>en entier</strong> avant de modifier le code ;</li>
+<li>[ ] le test <code>test_validation_renvoie_les_erreurs_par_champ</code> confirme que <code>pointer == "/duree_jours"</code> (si ce n'est pas le cas, afficher <code>exc.errors</code> dans le gestionnaire pour voir la vraie structure de <code>loc</code>) ;</li>
+<li>[ ] le stagiaire explique pourquoi <code>test_route_inconnue_au_format_problem_details</code> ne passerait pas avec <code>DEBUG=True</code>.</li>
+</ul>
+<h4>Étape 5 — Démontrer la conformité avec le client du jour 1 (15 min)</h4>
+<p>Rendre l'URL de base de <code>verifier_avec_client.py</code> configurable :</p>
+<div class="code-block"><pre><code class="language-python"># verifier_avec_client.py, remplacer la ligne BASE
+BASE = os.environ.get(&quot;CATALOGUE_BASE_URL&quot;, &quot;http://127.0.0.1:8000/v1&quot;)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-bash"># terminal 1 : API Django
+cd django_api &amp;&amp; python manage.py runserver 8001
+
+# terminal 2 : le même script, deux cibles
+python verifier_avec_client.py                                   # API FastAPI (port 8000)
+CATALOGUE_BASE_URL=http://127.0.0.1:8001/v1 python verifier_avec_client.py     # API Django
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-powershell">$env:CATALOGUE_BASE_URL = &quot;http://127.0.0.1:8001/v1&quot;
+python verifier_avec_client.py
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Résultat attendu</strong> : <strong>les huit lignes de sortie sont identiques</strong> pour les deux serveurs (seuls les identifiants changent). Si une ligne diffère, c'est un écart de contrat : le stagiaire identifie l'implémentation fautive en relisant le tableau de contrat du jour 2 (section 3.3) et la corrige.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Ligne</th>
+<th>Attendu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. sans jeton</td>
+<td><code>401 missing_token</code></td>
+</tr>
+<tr>
+<td>2. jeton de lecture</td>
+<td><code>403 insufficient_scope</code></td>
+</tr>
+<tr>
+<td>3. création</td>
+<td>identifiant de la formation créée</td>
+</tr>
+<tr>
+<td>4. doublon</td>
+<td><code>409 code_deja_utilise</code></td>
+</tr>
+<tr>
+<td>5. validation</td>
+<td><code>/duree_jours</code> + message de validation</td>
+</tr>
+<tr>
+<td>6. modification</td>
+<td><code>4 jours</code></td>
+</tr>
+<tr>
+<td>7. liste</td>
+<td>codes de formation de la base</td>
+</tr>
+<tr>
+<td>8. après suppression</td>
+<td><code>404</code></td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout note"><div class="callout-title">Pourquoi le message de la ligne 5 peut différer</div><p>Le <strong>pointeur</strong> et le <strong>code</strong> (<code>less_than_equal</code>) viennent de Pydantic dans les deux implémentations. Le texte <code>detail</code> est repris tel quel de la bibliothèque de validation : s'il varie d'une version de Pydantic à l'autre, ce n'est pas une rupture de contrat, car le contrat promet la structure et le <code>code</code>, pas la phrase.</p></div>
+<p><strong>Points de contrôle de fin d'atelier</strong></p>
+<ul>
+<li>[ ] <code>python -m pytest -q</code> passe dans <code>django_api/</code> ;</li>
+<li>[ ] <code>verifier_avec_client.py</code> produit les mêmes huit lignes sur les deux API ;</li>
+<li>[ ] aucun jeton ni mot de passe n'apparaît dans le code ni dans <code>git status</code> ;</li>
+<li>[ ] le stagiaire sait lister trois différences entre l'implémentation FastAPI et l'implémentation Django, et expliquer laquelle il choisirait pour une application qui possède déjà une administration Django.</li>
+</ul>
+<div class="callout warn"><div class="callout-title">Pièges fréquents dans l'atelier</div><p><code>ImproperlyConfigured: DJANGO_SECRET_KEY</code> : <code>DJANGO_PRODUCTION=true</code> est défini dans le terminal. <code>no such table</code> : <code>migrate</code> n'a pas été exécuté. <code>ModuleNotFoundError: catalogue</code> dans <code>pytest</code> : la commande est lancée hors de <code>django_api/</code>. <code>401 invalid_token</code> alors que le jeton est correct : le jeton recopié est celui d'une exécution précédente de <code>initialiser_catalogue</code> (la commande en génère de nouveaux à chaque appel). <code>X-Cache: HIT</code> inattendu après une modification faite dans l'administration : l'invalidation est déclenchée par l'API ; une écriture par l'administration attend l'expiration des 60 secondes.</p></div>
+<h4>Extensions pour les plus rapides</h4>
+<ol>
+<li><strong>Limitation de débit.</strong> Appliquer le mécanisme de limitation intégré de Django-Ninja (<code>throttle=</code>) aux écritures, et vérifier le <code>429</code>.</li>
+<li><strong>Versionnement.</strong> Créer une seconde instance <code>NinjaAPI(version="2.0.0", urls_namespace="catalogue_v2")</code> montée sur <code>v2/</code>, qui ajoute un champ à <code>FormationOut</code>, pendant que <code>/v1</code> reste inchangé.</li>
+<li><strong>Invalidation par signal.</strong> Brancher <code>post_save</code> et <code>post_delete</code> pour invalider le cache aussi lors des modifications faites dans l'administration.</li>
+<li><strong>Révocation.</strong> Écrire une action d'administration « Révoquer les jetons sélectionnés » pour <code>ApiToken</code>.</li>
+<li><strong>Test de contrat paramétré.</strong> Un test <code>pytest</code> unique, paramétré par l'URL de base, qui rejoue <code>verifier_avec_client.py</code> contre chaque serveur disponible.</li>
+</ol>
+<hr />
+</div>
+
+<div id="tab-b7-bloc-6-90-min" class="tab-content">
+<h3>7.1 Ce qu'un déploiement doit résoudre</h3>
+<p>Un script qui fonctionne sur le poste d'un développeur n'est pas un service. Pour passer en production, six préoccupations apparaissent, indépendamment du framework :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Préoccupation</th>
+<th>Question</th>
+<th>Réponse typique</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>HTTPS</strong></td>
+<td>qui chiffre les échanges et gère les certificats ?</td>
+<td>un proxy inverse ou le service d'un fournisseur (terminaison TLS)</td>
+</tr>
+<tr>
+<td><strong>Démarrage</strong></td>
+<td>qui lance l'application au démarrage de la machine ?</td>
+<td>systemd, Docker, un orchestrateur</td>
+</tr>
+<tr>
+<td><strong>Redémarrage</strong></td>
+<td>qui relance l'application si elle plante ?</td>
+<td>le même outil, avec une politique de redémarrage</td>
+</tr>
+<tr>
+<td><strong>Réplication</strong></td>
+<td>combien de processus, sur combien de machines ?</td>
+<td>plusieurs <em>workers</em>, ou plusieurs conteneurs derrière un répartiteur de charge</td>
+</tr>
+<tr>
+<td><strong>Mémoire</strong></td>
+<td>combien consomme chaque processus ?</td>
+<td>une limite et une surveillance par processus</td>
+</tr>
+<tr>
+<td><strong>Étapes préalables</strong></td>
+<td>quoi exécuter avant le démarrage ?</td>
+<td>migrations de base, collecte des fichiers statiques, vérifications</td>
+</tr>
+</tbody>
+</table></div>
+<p>Ces six points sont communs à Django et à FastAPI. Seuls changent les outils qui les prennent en charge.</p>
+<p><strong>Les serveurs de développement ne sont pas faits pour la production.</strong> <code>python manage.py runserver</code> et <code>fastapi dev</code> sont pratiques (rechargement, messages détaillés) mais ne sont ni durcis, ni optimisés. La documentation de Django l'énonce explicitement : <code>runserver</code> n'est pas conçu pour un environnement de production, il faut un serveur WSGI ou ASGI.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Interface</th>
+<th>Serveurs d'application courants</th>
+<th>Frameworks vus pendant la formation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>WSGI</strong> (synchrone)</td>
+<td>Gunicorn (Linux, macOS), Waitress (portable, dont Windows)</td>
+<td>Django classique, Flask</td>
+</tr>
+<tr>
+<td><strong>ASGI</strong> (asynchrone)</td>
+<td>Uvicorn, Hypercorn</td>
+<td>FastAPI, Django en mode ASGI</td>
+</tr>
+</tbody>
+</table></div>
+<p>Django-Ninja avec des opérations synchrones s'exécute très bien sous WSGI : c'est le choix retenu. Un déploiement ASGI (Uvicorn) est possible pour des opérations <code>async def</code>.</p>
+<h3>7.2 Architecture de base d'un déploiement Django</h3>
+<p><img alt="Deux déploiements de base côte à côte" src="../contenus/architecture-deploiement.svg" /></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Composant</th>
+<th>Rôle</th>
+<th>Pourquoi ne pas s'en passer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Proxy inverse</strong> (Nginx)</td>
+<td>termine TLS, filtre les hôtes, limite la taille des corps, relaie vers l'application</td>
+<td>l'application n'est jamais exposée directement</td>
+</tr>
+<tr>
+<td><strong>Serveur d'application</strong> (Gunicorn)</td>
+<td>exécute plusieurs processus Django, les relance s'ils meurent</td>
+<td>Django n'est pas un serveur réseau durci</td>
+</tr>
+<tr>
+<td><strong>Application</strong> (Django + Ninja + WhiteNoise)</td>
+<td>traite les requêtes, sert ses fichiers statiques</td>
+<td>WhiteNoise évite un service supplémentaire pour la documentation et l'administration</td>
+</tr>
+<tr>
+<td><strong>Base de données</strong> (PostgreSQL)</td>
+<td>stockage durable, partagé entre processus</td>
+<td>SQLite convient au développement, pas à plusieurs processus en écriture</td>
+</tr>
+<tr>
+<td><strong>Cache</strong> (Redis)</td>
+<td>cache partagé entre les processus</td>
+<td><code>LocMemCache</code> serait un cache par processus</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Les réglages de production</strong> (déjà préparés dans <code>settings.py</code>) :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Réglage</th>
+<th>Valeur en production</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DEBUG</code></td>
+<td><code>False</code> (forcé par <code>DJANGO_PRODUCTION</code>)</td>
+<td>aucune trace ni code source dans les réponses</td>
+</tr>
+<tr>
+<td><code>SECRET_KEY</code></td>
+<td>variable <code>DJANGO_SECRET_KEY</code>, aléatoire, jamais dans Git</td>
+<td>signature des sessions et des jetons Django</td>
+</tr>
+<tr>
+<td><code>ALLOWED_HOSTS</code></td>
+<td>liste des noms d'hôte réels</td>
+<td>refuse les requêtes dont l'en-tête <code>Host</code> est inattendu</td>
+</tr>
+<tr>
+<td><code>SECURE_PROXY_SSL_HEADER</code></td>
+<td><code>("HTTP_X_FORWARDED_PROTO", "https")</code></td>
+<td>Django sait que la requête initiale était en HTTPS, derrière le proxy</td>
+</tr>
+<tr>
+<td><code>SECURE_SSL_REDIRECT</code></td>
+<td><code>True</code></td>
+<td>redirige HTTP vers HTTPS</td>
+</tr>
+<tr>
+<td><code>SESSION_COOKIE_SECURE</code>, <code>CSRF_COOKIE_SECURE</code></td>
+<td><code>True</code></td>
+<td>cookies jamais envoyés en clair</td>
+</tr>
+<tr>
+<td><code>SECURE_HSTS_SECONDS</code></td>
+<td>une valeur élevée une fois HTTPS validé</td>
+<td>le navigateur impose HTTPS pour ce domaine</td>
+</tr>
+<tr>
+<td><code>STATIC_ROOT</code></td>
+<td>dossier de <code>collectstatic</code></td>
+<td>fichiers statiques servis par WhiteNoise</td>
+</tr>
+<tr>
+<td><code>CONN_MAX_AGE</code></td>
+<td><code>60</code></td>
+<td>réutilise les connexions à la base</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout danger"><div class="callout-title"><code>SECURE_PROXY_SSL_HEADER</code> ne se règle que derrière un proxy de confiance</div><p>Ce réglage dit à Django de <strong>croire</strong> l'en-tête <code>X-Forwarded-Proto</code>. Si l'application est atteignable directement, n'importe quel client peut forger cet en-tête. Le conteneur de l'application ne doit donc jamais être exposé sur Internet : seul le proxy l'est, et il positionne lui-même l'en-tête.</p></div>
+<p><strong>La commande qui audite les réglages :</strong></p>
+<div class="code-block"><pre><code class="language-bash">python manage.py check --deploy
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Elle liste les réglages de sécurité manquants (par exemple <code>security.W004</code> pour HSTS ou <code>security.W008</code> pour la redirection HTTPS). À exécuter <strong>avec les variables de production</strong> ; aucun avertissement ne doit subsister sans justification.</p>
+<p><strong>Les étapes préalables d'une mise en production Django :</strong></p>
+<div class="code-block"><pre><code class="language-bash">python manage.py migrate --noinput          # schéma de la base
+python manage.py collectstatic --noinput    # fichiers statiques vers STATIC_ROOT
+python manage.py check --deploy             # audit des réglages
+gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --access-logfile -
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Nombre de workers.</strong> Gunicorn recommande, comme point de départ, <code>(2 × nombre de cœurs) + 1</code> processus. Chaque worker a sa mémoire : le cache local et les verrous en mémoire ne sont <strong>pas</strong> partagés. Il faut mesurer sous charge et ajuster.</p>
+<div class="callout warn"><div class="callout-title">Gunicorn ne fonctionne pas sous Windows</div><p>Pour tester localement un serveur WSGI de production sous Windows, utiliser Waitress : <code>pip install waitress</code> puis <code>waitress-serve --listen=127.0.0.1:8001 config.wsgi:application</code>. Sous WSL ou dans un conteneur Linux, Gunicorn s'utilise normalement.</p></div>
+<h3>7.3 Architecture de base d'un déploiement FastAPI</h3>
+<p>Le schéma de la section précédente montre le parallèle : le cœur est le même (proxy, serveur d'application, application), mais le serveur d'application est asynchrone.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Élément</th>
+<th>Django</th>
+<th>FastAPI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Serveur d'application</td>
+<td>Gunicorn (WSGI)</td>
+<td>Uvicorn, lancé par la commande <code>fastapi run</code> (ASGI)</td>
+</tr>
+<tr>
+<td>Commande de production</td>
+<td><code>gunicorn config.wsgi:application ...</code></td>
+<td><code>fastapi run app/main.py --proxy-headers --port 8000</code></td>
+</tr>
+<tr>
+<td>Plusieurs processus</td>
+<td><code>--workers N</code> de Gunicorn</td>
+<td><code>--workers N</code> de <code>fastapi run</code></td>
+</tr>
+<tr>
+<td>Derrière un proxy TLS</td>
+<td><code>SECURE_PROXY_SSL_HEADER</code></td>
+<td><code>--proxy-headers</code></td>
+</tr>
+<tr>
+<td>Fichiers statiques</td>
+<td>WhiteNoise ou proxy</td>
+<td>sans objet pour une API pure</td>
+</tr>
+<tr>
+<td>Étapes préalables</td>
+<td><code>migrate</code>, <code>collectstatic</code></td>
+<td>migrations de la base (outil au choix) ; aucune dans notre cas</td>
+</tr>
+<tr>
+<td>Configuration</td>
+<td>variables d'environnement lues par <code>settings.py</code></td>
+<td>variables d'environnement lues par <code>securite.py</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>La commande <code>fastapi dev</code> du jour 2 (rechargement automatique) devient <code>fastapi run</code> : <strong>pas de rechargement, mode production</strong>. L'option <code>--proxy-headers</code> indique à Uvicorn de faire confiance aux en-têtes envoyés par le proxy pour savoir que l'application est servie en HTTPS.</p>
+<div class="callout danger"><div class="callout-title">Le stockage en mémoire est incompatible avec plusieurs processus</div><p>L'API FastAPI du jour 2 garde ses données dans la mémoire d'<strong>un</strong> processus. Avec <code>--workers 4</code>, chaque worker aurait sa propre copie : une formation créée par l'un serait invisible pour les autres, et la même requête donnerait des réponses différentes d'un appel à l'autre. Avant tout déploiement réel, le <code>Stockage</code> doit être remplacé par une base de données partagée (c'est ce que fait l'ORM de Django). Tant que ce n'est pas fait : <strong>un seul processus</strong>.</p></div>
+<p><strong>Un processus par conteneur, la réplication à l'extérieur.</strong> La documentation de FastAPI recommande, dans un environnement de conteneurs avec orchestrateur (Kubernetes ou similaire), de lancer <strong>un seul processus par conteneur</strong> et de multiplier les conteneurs derrière un répartiteur de charge, plutôt que d'utiliser <code>--workers</code> dans chaque conteneur. L'option <code>--workers</code> garde du sens pour une application simple sur un seul serveur, ou avec Docker Compose sur une machine.</p>
+<h3>7.4 Conteneurs : Django, PostgreSQL, Redis et Nginx</h3>
+<p>Un <strong>conteneur</strong> empaquette l'application et ses dépendances avec une image du système, de sorte que l'environnement de production est strictement celui qu'on a testé. Une <strong>image</strong> est le modèle figé ; un <strong>conteneur</strong> est une instance en cours d'exécution.</p>
+<p><strong>Dépendances de production de l'API Django</strong> (<code>django_api/requirements-django.txt</code>) :</p>
+<div class="code-block"><pre><code>Django&gt;=5.2,&lt;5.3
+django-ninja&gt;=1.8,&lt;2
+python-dotenv
+gunicorn
+whitenoise
+psycopg[binary]
+redis
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong><code>django_api/Dockerfile</code></strong></p>
+<div class="code-block"><pre><code class="language-dockerfile">FROM python:3.13-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /srv
+
+# Les dépendances d'abord : cette couche reste en cache tant que le fichier ne change pas
+COPY requirements-django.txt .
+RUN pip install --no-cache-dir -r requirements-django.txt
+
+COPY manage.py .
+COPY config ./config
+COPY catalogue ./catalogue
+RUN python manage.py collectstatic --noinput
+
+RUN useradd --create-home appli &amp;&amp; chown -R appli /srv
+USER appli
+
+EXPOSE 8000
+CMD [&quot;gunicorn&quot;, &quot;config.wsgi:application&quot;, &quot;--bind&quot;, &quot;0.0.0.0:8000&quot;, &quot;--workers&quot;, &quot;3&quot;, &quot;--access-logfile&quot;, &quot;-&quot;]
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Choix à commenter : la copie des dépendances <strong>avant</strong> le code accélère les reconstructions ; l'application s'exécute avec un <strong>utilisateur non privilégié</strong> ; la forme <code>CMD [...]</code> (forme « exec ») permet un arrêt propre quand le conteneur reçoit un signal ; les journaux vont sur la <strong>sortie standard</strong>, collectée par Docker.</p>
+<p><strong><code>deploiement/nginx.conf</code></strong></p>
+<div class="code-block"><pre><code class="language-nginx">server {
+    listen 80;
+    server_name _;
+    client_max_body_size 1m;
+
+    location / {
+        proxy_pass http://web:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong><code>docker-compose.yml</code></strong> (à la racine de <code>api-catalogue/</code>, à côté de <code>.env</code>) :</p>
+<div class="code-block"><pre><code class="language-yaml">services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: catalogue
+      POSTGRES_USER: catalogue
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - donnees-db:/var/lib/postgresql/data
+    healthcheck:
+      test: [&quot;CMD-SHELL&quot;, &quot;pg_isready -U catalogue -d catalogue&quot;]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  cache:
+    image: redis:7
+
+  web:
+    build: ./django_api
+    environment:
+      DJANGO_PRODUCTION: &quot;true&quot;
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      DJANGO_SSL_REDIRECT: &quot;false&quot;          # démonstration locale en HTTP ; à retirer derrière un vrai TLS
+      POSTGRES_DB: catalogue
+      POSTGRES_USER: catalogue
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: db
+      CACHE_BACKEND: redis
+      CACHE_URL: redis://cache:6379
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_started
+    command: &gt;
+      sh -c &quot;python manage.py migrate --noinput &amp;&amp;
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --access-logfile -&quot;
+    healthcheck:
+      test: [&quot;CMD&quot;, &quot;python&quot;, &quot;-c&quot;, &quot;import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/v1/sante')&quot;]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  proxy:
+    image: nginx:1
+    ports:
+      - &quot;8080:80&quot;
+    volumes:
+      - ./deploiement/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - web
+
+volumes:
+  donnees-db:
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Correspondance avec les six préoccupations :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Préoccupation</th>
+<th>Où elle est traitée</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HTTPS</td>
+<td>le proxy (<code>proxy</code>) ; ici désactivé pour la démonstration locale, en production un certificat est monté ou géré par le fournisseur</td>
+</tr>
+<tr>
+<td>Démarrage et redémarrage</td>
+<td><code>restart: unless-stopped</code>, <code>healthcheck</code></td>
+</tr>
+<tr>
+<td>Réplication</td>
+<td>Gunicorn (<code>--workers 3</code>) ; l'ajout de conteneurs <code>web</code> passerait par un orchestrateur</td>
+</tr>
+<tr>
+<td>Mémoire</td>
+<td>limites du conteneur (<code>mem_limit</code> ou équivalent), hors de la démonstration</td>
+</tr>
+<tr>
+<td>Étapes préalables</td>
+<td><code>migrate</code> au démarrage du conteneur <code>web</code> (convient avec <strong>un</strong> conteneur <code>web</code> ; avec plusieurs, déplacer la migration dans une tâche unique)</td>
+</tr>
+<tr>
+<td>Secrets</td>
+<td><code>.env</code> du poste, jamais dans l'image ; en production, secrets de l'orchestrateur</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Le Dockerfile de l'API FastAPI</strong> suit le modèle de la documentation officielle de FastAPI, avec l'option de proxy et un utilisateur non privilégié.</p>
+<div class="code-block"><pre><code># requirements-fastapi.txt
+fastapi[standard]
+python-dotenv
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-dockerfile">FROM python:3.13-slim
+
+WORKDIR /code
+
+COPY requirements-fastapi.txt /code/requirements-fastapi.txt
+RUN pip install --no-cache-dir --upgrade -r /code/requirements-fastapi.txt
+
+COPY ./app /code/app
+
+RUN useradd --create-home appli
+USER appli
+
+EXPOSE 8000
+CMD [&quot;fastapi&quot;, &quot;run&quot;, &quot;app/main.py&quot;, &quot;--proxy-headers&quot;, &quot;--port&quot;, &quot;8000&quot;]
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Les jetons et le mot de passe d'administration (<code>CATALOGUE_TOKEN_*</code>, <code>CATALOGUE_ADMIN_*</code>) sont transmis <strong>à l'exécution</strong> (<code>docker run --env-file</code>, <code>environment:</code> ou secrets), jamais copiés dans l'image. Un fichier <code>.dockerignore</code> écarte <code>.env</code>, <code>.venv</code>, <code>__pycache__</code> et <code>.git</code> du contexte de construction.</p>
+<h3>🛠️ Micro-atelier 10 — Mettre en production locale l'API Django (35 min)</h3>
+<p><strong>Avec Docker</strong> (poste équipé de Docker Desktop ou d'un moteur de conteneurs) :</p>
+<ol>
+<li>Ajouter à <code>.env</code> : <code>DJANGO_SECRET_KEY</code> (valeur générée avec <code>python -c "import secrets; print(secrets.token_urlsafe(50))"</code>) et <code>POSTGRES_PASSWORD</code>.</li>
+<li>Créer <code>django_api/requirements-django.txt</code>, <code>django_api/Dockerfile</code>, <code>deploiement/nginx.conf</code> et <code>docker-compose.yml</code>.</li>
+<li>Démarrer :</li>
+</ol>
+<div class="code-block"><pre><code class="language-bash">docker compose up --build -d
+docker compose ps                                           # les services doivent être « running » ou « healthy »
+docker compose exec web python manage.py initialiser_catalogue
+docker compose exec web python manage.py createsuperuser
+docker compose exec web python manage.py check --deploy
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<ol>
+<li>Recopier les jetons affichés dans <code>.env</code>, puis rejouer le scénario <strong>à travers le proxy</strong> :</li>
+</ol>
+<div class="code-block"><pre><code class="language-bash">CATALOGUE_BASE_URL=http://localhost:8080/v1 python verifier_avec_client.py
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<ol>
+<li>Lire les journaux et observer le cache partagé :</li>
+</ol>
+<div class="code-block"><pre><code class="language-bash">docker compose logs -f web
+curl.exe -i http://localhost:8080/v1/formations      # X-Cache: MISS puis HIT
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<ol>
+<li>Arrêter et nettoyer :</li>
+</ol>
+<div class="code-block"><pre><code class="language-bash">docker compose down            # conserve les données ; « down -v » supprime aussi le volume
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Résultats attendus</strong></p>
+<ul>
+<li>[ ] <code>docker compose ps</code> montre <code>web</code> en bonne santé, et <code>proxy</code> à l'écoute sur <code>8080</code> ;</li>
+<li>[ ] <code>check --deploy</code> n'affiche que des avertissements justifiés (HTTPS désactivé pour la démonstration locale) ;</li>
+<li>[ ] <code>verifier_avec_client.py</code> produit les huit lignes attendues à travers Nginx, Gunicorn, Django, PostgreSQL et Redis ;</li>
+<li>[ ] le second appel <code>GET /v1/formations</code> répond <code>X-Cache: HIT</code>, <strong>quel que soit le worker Gunicorn</strong> qui le traite (preuve que le cache est partagé).</li>
+</ul>
+<p><strong>Sans Docker :</strong></p>
+<ol>
+<li>Installer <code>waitress</code> (<code>pip install waitress</code>) et lancer <code>waitress-serve --listen=127.0.0.1:8001 config.wsgi:application</code> dans <code>django_api/</code>.</li>
+<li>Lancer <code>python manage.py check --deploy</code> avec <code>DJANGO_PRODUCTION=true</code> et <code>DJANGO_SECRET_KEY</code> définis, puis interpréter chaque avertissement.</li>
+<li>Construire (sans l'exécuter) l'image de l'API FastAPI si Docker est disponible, ou rédiger la commande <code>fastapi run</code> correspondante et expliquer chaque option.</li>
+</ol>
+<h3>7.5 Exploitation : ce qui vient après la mise en ligne</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Sujet</th>
+<th>Bonne pratique</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Journaux</strong></td>
+<td>sur la sortie standard, un format lisible par machine, avec le <code>request_id</code> des erreurs ; jamais d'en-tête <code>Authorization</code> ni de mot de passe</td>
+</tr>
+<tr>
+<td><strong>Supervision</strong></td>
+<td>un point de santé (<code>/v1/sante</code>) interrogé par l'orchestrateur ; des alertes sur les taux de <code>5xx</code> et de <code>429</code></td>
+</tr>
+<tr>
+<td><strong>Santé approfondie</strong></td>
+<td>un second point d'entrée qui vérifie la base et le cache, distinct du point de vie simple, pour éviter qu'une panne de base ne provoque des redémarrages en boucle</td>
+</tr>
+<tr>
+<td><strong>Sauvegardes</strong></td>
+<td>de la base de données, testées par une restauration réelle</td>
+</tr>
+<tr>
+<td><strong>Mises à jour</strong></td>
+<td>migrations compatibles avec l'ancienne et la nouvelle version du code ; déploiement progressif (un conteneur après l'autre)</td>
+</tr>
+<tr>
+<td><strong>Secrets</strong></td>
+<td>stockés hors de l'image et du dépôt, renouvelés ; jetons d'API avec expiration et révocation</td>
+</tr>
+<tr>
+<td><strong>Limites</strong></td>
+<td>taille de corps (proxy), quotas par jeton (<code>429</code>), délais d'attente du proxy</td>
+</tr>
+<tr>
+<td><strong>Compatibilité</strong></td>
+<td>une évolution incompatible de l'API se publie sous un nouveau préfixe (<code>/v2</code>), l'ancien reste en service le temps de la migration (leçon du jour 1 avec GoRest v2 et v3)</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout tip"><div class="callout-title">Le contrat protège le déploiement</div><p>Une API déployée derrière un proxy, avec une base partagée et un cache, doit répondre exactement comme celle du poste de développement. <code>verifier_avec_client.py</code> est le test d'acceptation : s'il passe, le déploiement n'a pas altéré le contrat.</p></div>
+<hr />
+</div>
+
+<div id="tab-synthese-de-fin-de-journee" class="tab-content">
+<h3>Ce qui est en place</h3>
+<div class="code-block"><pre><code>api-catalogue/
+├── .env                          # jetons, secrets, paramètres (non versionné)
+├── docker-compose.yml            # web (Django), db, cache, proxy
+├── deploiement/nginx.conf
+├── requirements-fastapi.txt
+├── catalogue_client/             # jour 1 : client réutilisable
+├── app/                          # jour 2 : API FastAPI (+ Dockerfile)
+├── django_api/                   # jour 3 : API Django-Ninja
+│   ├── Dockerfile
+│   ├── requirements-django.txt
+│   ├── config/                   # réglages (développement et production)
+│   ├── catalogue/                # modèles, schémas, erreurs, sécurité, cache, routes
+│   └── tests/test_api_django.py
+├── tests/test_api.py             # tests de l'API FastAPI
+└── verifier_avec_client.py       # scénario de conformité (les deux API)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<h3>Les réflexes installés</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Réflexe</th>
+<th>Pourquoi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Le contrat d'abord, l'implémentation ensuite</td>
+<td>deux frameworks différents ont tenu la même promesse</td>
+</tr>
+<tr>
+<td>Un test de contrat joué par un vrai client</td>
+<td>il détecte ce que les tests internes ne voient pas</td>
+</tr>
+<tr>
+<td><code>model_dump(mode="json")</code> avant d'écrire en base ou en cache</td>
+<td>types simples, aucun piège sur les énumérations et les dates</td>
+</tr>
+<tr>
+<td>Jetons stockés sous forme d'empreinte, avec expiration et révocation</td>
+<td>une fuite de la base ne livre aucun jeton utilisable</td>
+</tr>
+<tr>
+<td>Droits portés par des permissions Django</td>
+<td>une seule politique pour l'API et l'administration</td>
+</tr>
+<tr>
+<td>Cache applicatif avec invalidation par version de clé</td>
+<td>des lectures rapides sans données périmées</td>
+</tr>
+<tr>
+<td><code>DEBUG=False</code>, <code>SECRET_KEY</code> externe et <code>check --deploy</code></td>
+<td>un déploiement ne se fait jamais avec les réglages du poste de développement</td>
+</tr>
+<tr>
+<td>Un point de santé et des journaux sur la sortie standard</td>
+<td>l'orchestrateur sait quand relancer, l'équipe sait pourquoi</td>
+</tr>
+<tr>
+<td>Un seul processus tant que l'état est en mémoire</td>
+<td>la cohérence des données passe avant la performance</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Pièges vus aujourd'hui (à récapituler oralement)</h3>
+<ol>
+<li>Écrire <code>donnees.model_dump()</code> dans un champ à choix : un membre d'énumération peut être enregistré sous la forme <code>"Niveau.avance"</code>. Utiliser <code>mode="json"</code>.</li>
+<li>Placer un décorateur de droits <strong>avant</strong> l'authentification (mode vue) : <code>request.auth</code> n'existe pas encore.</li>
+<li>Oublier <code>@wraps</code> dans un décorateur d'opération : Django-Ninja ne lit plus la signature de la fonction.</li>
+<li>Un cache de vue sans <code>vary_on_headers("Authorization")</code> sert la réponse d'un utilisateur à un autre.</li>
+<li><code>LocMemCache</code> avec plusieurs workers : un cache par processus, des invalidations invisibles aux autres.</li>
+<li>Garder <code>DEBUG=True</code> en production : traces, code source et réglages dans les réponses.</li>
+<li>Exposer le conteneur Django sur Internet avec <code>SECURE_PROXY_SSL_HEADER</code> : n'importe qui peut forger <code>X-Forwarded-Proto</code>.</li>
+<li>Lancer <code>migrate</code> dans chaque conteneur d'une flotte répliquée : exécuter les migrations une seule fois, dans une tâche dédiée.</li>
+<li>Déployer le stockage en mémoire de FastAPI avec plusieurs workers : chaque processus voit des données différentes.</li>
+<li>Mettre un secret dans l'image (<code>COPY .env</code>) : il reste dans les couches, même supprimé ensuite.</li>
+</ol>
+<h3>Suite de parcours</h3>
+<p>Les trois jours ont couvert les blocs du programme officiel : consommer des API (jour 1), concevoir et implémenter avec FastAPI (jour 2), réimplémenter avec Django-Ninja puis déployer (jour 3). Le catalogue Dawan propose, dans la continuité de ce stage :</p>
+<ul>
+<li><strong>Python Avancé : FastAPI</strong> (3 jours), pour approfondir l'asynchrone, les bases de données et l'architecture d'un service FastAPI ;</li>
+<li><strong>Python Intermédiaire : Bonnes pratiques</strong> et <strong>Multithreading et Tests</strong> (respectivement 3 et 2 jours), pour la qualité du code et la concurrence.</li>
+</ul>
+<p>En fin de stage, un positionnement de sortie, une évaluation à chaud et l'attestation de fin de formation sont disponibles depuis l'espace personnel <code>moncompte.dawan.fr</code>. Les ateliers réalisés pendant les trois jours constituent l'évaluation des acquis.</p>
+<hr />
+</div>
+
+<div id="tab-annexe-commandes-du-jour-cheat-sheet" class="tab-content">
+<div class="code-block"><pre><code class="language-bash"># --- Projet Django ---------------------------------------------------------
+django-admin startproject config .
+python manage.py startapp catalogue
+python manage.py makemigrations catalogue
+python manage.py migrate
+python manage.py runserver 8001
+python manage.py initialiser_catalogue          # groupes, utilisateurs de service, jetons
+python manage.py createsuperuser                # compte staff (route BASIC)
+python manage.py check --deploy                 # audit des réglages de production
+python manage.py collectstatic --noinput
+python -m pytest -q                             # depuis django_api/
+
+# --- Production ------------------------------------------------------------
+gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --access-logfile -
+waitress-serve --listen=127.0.0.1:8001 config.wsgi:application     # alternative sous Windows
+fastapi run app/main.py --proxy-headers --port 8000
+
+# --- Conteneurs ------------------------------------------------------------
+docker compose up --build -d
+docker compose ps
+docker compose logs -f web
+docker compose exec web python manage.py initialiser_catalogue
+docker compose down
+
+# --- Générer un secret -----------------------------------------------------
+python -c &quot;import secrets; print(secrets.token_urlsafe(50))&quot;
+
+# --- Rejouer le scénario de conformité ---------------------------------------
+CATALOGUE_BASE_URL=http://127.0.0.1:8001/v1 python verifier_avec_client.py
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Besoin</th>
+<th>Code Django-Ninja</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Instance de l'API</td>
+<td><code>api = NinjaAPI(title=..., version=..., urls_namespace="catalogue")</code></td>
+</tr>
+<tr>
+<td>Brancher dans les URL</td>
+<td><code>path("v1/", api.urls)</code></td>
+</tr>
+<tr>
+<td>Routeur monté</td>
+<td><code>api.add_router("/formations", router)</code></td>
+</tr>
+<tr>
+<td>Paramètre de requête avec alias</td>
+<td><code>taille: Query[int, P(alias="page[size]", ge=1, le=100)] = 25</code></td>
+</tr>
+<tr>
+<td>Réponse et code de succès</td>
+<td><code>@router.post("", response={201: FormationOut})</code> puis <code>return Status(201, objet)</code></td>
+</tr>
+<tr>
+<td>Réponse sans corps</td>
+<td><code>response={204: None}</code> puis <code>return Status(204, None)</code></td>
+</tr>
+<tr>
+<td>En-tête de réponse</td>
+<td>paramètre <code>response: HttpResponse</code>, puis <code>response["Location"] = ...</code></td>
+</tr>
+<tr>
+<td>Authentification</td>
+<td><code>auth=BearerJeton()</code> ou <code>auth=BasicAdmin()</code> ; <code>auth=None</code> pour désactiver</td>
+</tr>
+<tr>
+<td>Droit sur une opération</td>
+<td><code>@exiger_permission("catalogue.add_formation")</code> sous le décorateur de route</td>
+</tr>
+<tr>
+<td>Objet introuvable</td>
+<td><code>get_object_or_404(Formation, pk=...)</code></td>
+</tr>
+<tr>
+<td>Gestionnaire d'erreur</td>
+<td><code>@api.exception_handler(Exception)</code></td>
+</tr>
+<tr>
+<td>URL inconnue</td>
+<td><code>handler404 = "catalogue.erreurs.page_introuvable"</code> dans <code>urls.py</code></td>
+</tr>
+<tr>
+<td>Cache de vue</td>
+<td><code>@decorate_view(cache_page(60), vary_on_headers("Authorization"))</code></td>
+</tr>
+<tr>
+<td>Test d'API</td>
+<td><code>client.post(url, data=..., content_type="application/json", HTTP_AUTHORIZATION=...)</code></td>
+</tr>
+</tbody>
+</table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Variable d'environnement</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DJANGO_PRODUCTION</code></td>
+<td><code>true</code> : <code>DEBUG</code> forcé à <code>False</code>, réglages de sécurité HTTPS activés</td>
+</tr>
+<tr>
+<td><code>DJANGO_SECRET_KEY</code></td>
+<td>clé secrète (obligatoire en production)</td>
+</tr>
+<tr>
+<td><code>DJANGO_ALLOWED_HOSTS</code></td>
+<td>noms d'hôte autorisés, séparés par des virgules</td>
+</tr>
+<tr>
+<td><code>DJANGO_SSL_REDIRECT</code></td>
+<td><code>false</code> seulement pour une démonstration locale en HTTP</td>
+</tr>
+<tr>
+<td><code>POSTGRES_DB</code>, <code>POSTGRES_USER</code>, <code>POSTGRES_PASSWORD</code>, <code>POSTGRES_HOST</code></td>
+<td>active PostgreSQL à la place de SQLite</td>
+</tr>
+<tr>
+<td><code>CACHE_BACKEND</code>, <code>CACHE_URL</code></td>
+<td><code>redis</code> ou <code>memcached</code>, et l'adresse du service</td>
+</tr>
+<tr>
+<td><code>CATALOGUE_TOKEN_ECRITURE</code>, <code>CATALOGUE_TOKEN_LECTURE</code></td>
+<td>jetons utilisés par <code>verifier_avec_client.py</code></td>
+</tr>
+<tr>
+<td><code>CATALOGUE_BASE_URL</code></td>
+<td>URL de base de l'API vérifiée</td>
+</tr>
+</tbody>
+</table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Cas dans l'API Django (identique à l'API FastAPI)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>200</code>, <code>201</code>, <code>204</code></td>
+<td>lecture ou modification, création avec <code>Location</code>, suppression</td>
+</tr>
+<tr>
+<td><code>400</code></td>
+<td>curseur de pagination illisible</td>
+</tr>
+<tr>
+<td><code>401</code></td>
+<td>jeton absent, invalide, révoqué ou expiré ; identifiants BASIC faux</td>
+</tr>
+<tr>
+<td><code>403</code></td>
+<td>permission Django manquante</td>
+</tr>
+<tr>
+<td><code>404</code></td>
+<td>formation inconnue, URL inconnue</td>
+</tr>
+<tr>
+<td><code>409</code></td>
+<td>code de formation déjà utilisé</td>
+</tr>
+<tr>
+<td><code>422</code></td>
+<td>donnée invalide</td>
+</tr>
+<tr>
+<td><code>500</code></td>
+<td>bug imprévu, sans trace dans la réponse</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+  </div>
+</div>
+
+<script>
+// ─── THEME ──────────────────────────────────────────────────────────────────
+(function () {
+  const root = document.documentElement;
+  const stored = localStorage.getItem('dawan-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  updateToggleLabel();
+})();
+
+function updateToggleLabel() {
+  const current = document.documentElement.getAttribute('data-theme') ||
+    (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  document.getElementById('theme-icon').textContent = current === 'dark' ? '🌙' : '☀️';
+  document.getElementById('theme-label').textContent = current === 'dark' ? 'Sombre' : 'Clair';
+}
+
+function toggleTheme() {
+  const root = document.documentElement;
+  const current = root.getAttribute('data-theme') ||
+    (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  const next = current === 'dark' ? 'light' : 'dark';
+  root.setAttribute('data-theme', next);
+  localStorage.setItem('dawan-theme', next);
+  updateToggleLabel();
+}
+
+// ─── TABS ───────────────────────────────────────────────────────────────────
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.side-nav button').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+  document.querySelector('.content').scrollTo({ top: 0, behavior: 'instant' });
+}
+
+// ─── COPY CODE ──────────────────────────────────────────────────────────────
+function copyCode(btn) {
+  const pre = btn.previousElementSibling;
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.textContent = 'Copié !'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copier'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+</script>
+</body>
+</html>

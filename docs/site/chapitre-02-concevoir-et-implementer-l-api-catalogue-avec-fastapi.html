@@ -1,0 +1,2823 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Support interactif de formation Python Avancé — Web Services : 02 — Concevoir et implémenter l&#x27;API Catalogue avec FastAPI">
+<title>02 — Concevoir et implémenter l&#x27;API Catalogue avec FastAPI</title>
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --surface2: #1c2128; --border: #30363d;
+  --primary: #f0883e; --primary2: #ffa657;
+  --success: #3fb950; --warning: #d29922; --danger: #f85149;
+  --text: #e6edf3; --text-muted: #8b949e; --code-bg: #010409; --radius: 10px;
+  --topbar-h: 3.25rem;
+}
+:root[data-theme="light"] {
+  --bg: #ffffff; --surface: #f6f8fa; --surface2: #eaeef2; --border: #d0d7de;
+  --primary: #bc4c00; --primary2: #953800;
+  --success: #1a7f37; --warning: #9a6700; --danger: #cf222e;
+  --text: #1f2328; --text-muted: #656d76; --code-bg: #f6f8fa;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #ffffff; --surface: #f6f8fa; --surface2: #eaeef2; --border: #d0d7de;
+    --primary: #bc4c00; --primary2: #953800;
+    --success: #1a7f37; --warning: #9a6700; --danger: #cf222e;
+    --text: #1f2328; --text-muted: #656d76; --code-bg: #f6f8fa;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.7; transition: background .2s, color .2s; }
+
+/* TOPBAR — fixe, ne bouge jamais au scroll */
+.topbar {
+  position: sticky; top: 0; z-index: 200; height: var(--topbar-h);
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: .9rem; padding: 0 1rem;
+}
+.topbar .badge {
+  flex: 0 0 auto; background: var(--primary); color: #0d1117;
+  font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 20px; white-space: nowrap;
+}
+.topbar a.chapter-title {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: .5rem;
+  text-decoration: none; color: var(--text); font-weight: 700; font-size: .92rem;
+  overflow: hidden;
+}
+.topbar a.chapter-title:hover { color: var(--primary); }
+.topbar a.chapter-title .num { color: var(--primary); flex: 0 0 auto; }
+.topbar a.chapter-title .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-links { flex: 0 0 auto; display: flex; align-items: center; gap: .5rem; }
+.topbar-link {
+  white-space: nowrap; padding: .4rem .8rem; border: 1px solid var(--border); border-radius: 20px;
+  font-size: .8rem; font-weight: 600; color: var(--text-muted); text-decoration: none; transition: all .2s;
+}
+.topbar-link:hover { color: var(--primary); border-color: var(--primary); }
+.theme-toggle {
+  flex: 0 0 auto; background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  padding: .4rem .7rem; border-radius: 20px; font-size: .8rem; cursor: pointer;
+  display: inline-flex; align-items: center; gap: .35rem;
+}
+.theme-toggle:hover { border-color: var(--primary); }
+
+/* LAYOUT — sidebar gauche + contenu */
+.layout { display: flex; align-items: flex-start; }
+.sidebar {
+  flex: 0 0 280px; width: 280px;
+  position: sticky; top: var(--topbar-h);
+  height: calc(100vh - var(--topbar-h));
+  overflow-y: auto; border-right: 1px solid var(--border); background: var(--surface);
+  padding: 1.25rem 1rem 2rem;
+}
+.objectifs {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: .8rem 1rem; margin-bottom: 1.25rem;
+}
+.objectifs-label { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--primary); }
+.objectifs ul { margin: .4rem 0 0 1.1rem; }
+.objectifs li { font-size: .82rem; color: var(--text-muted); margin-bottom: .3rem; line-height: 1.4; }
+.side-nav { display: flex; flex-direction: column; gap: .1rem; }
+.side-nav button {
+  text-align: left; background: none; border: none; border-left: 3px solid transparent;
+  color: var(--text-muted); padding: .55rem .7rem; font-size: .87rem; font-weight: 500;
+  cursor: pointer; border-radius: 0 6px 6px 0; transition: all .15s;
+}
+.side-nav button:hover { color: var(--text); background: var(--surface2); }
+.side-nav button.active { color: var(--primary); border-left-color: var(--primary); background: var(--surface2); font-weight: 600; }
+.side-nav-sep { height: 1px; background: var(--border); margin: .6rem 0; }
+
+.content { flex: 1 1 auto; min-width: 0; }
+.tab-content { display: none; padding: 2rem 2.5rem 4rem; max-width: 1100px; margin: 0 auto; }
+.tab-content.active { display: block; }
+
+/* SECTIONS */
+h2 { font-size: 1.25rem; color: var(--primary2); margin: 1.8rem 0 .8rem; border-left: 3px solid var(--primary); padding-left: .75rem; }
+h3 { font-size: 1.05rem; color: var(--text); margin: 1.4rem 0 .6rem; }
+p { margin-bottom: .9rem; }
+ul, ol { padding-left: 1.4rem; margin-bottom: .9rem; }
+li { margin-bottom: .35rem; }
+
+/* RESSOURCES — liste sous forme de cartes plutôt que de puces */
+#tab-ressources ul { list-style: none; padding-left: 0; display: flex; flex-direction: column; gap: .5rem; }
+#tab-ressources li {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: .75rem 1rem; margin-bottom: 0;
+}
+#tab-ressources li a { color: var(--primary2); font-weight: 600; text-decoration: none; }
+#tab-ressources li a:hover { text-decoration: underline; }
+
+/* AIDE — divulgation progressive pas-à-pas */
+details.aide { margin-top: 1.5rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+details.aide summary {
+  cursor: pointer; padding: .8rem 1.1rem; font-weight: 600; color: var(--primary);
+  list-style: none; display: flex; align-items: center; gap: .5rem;
+}
+details.aide summary::-webkit-details-marker { display: none; }
+details.aide summary::before { content: "▶"; font-size: .7rem; transition: transform .15s; }
+details.aide[open] summary::before { transform: rotate(90deg); }
+details.aide .aide-body { padding: 0 1.1rem 1.1rem; border-top: 1px solid var(--border); margin-top: .2rem; padding-top: 1rem; }
+img { max-width: 100%; height: auto; display: block; margin: 1rem auto; }
+
+/* EXERCICE — un bloc par atelier, avec son aide pas-à-pas attachée juste en dessous */
+.exercice { padding: 1.3rem 0; border-top: 1px solid var(--border); }
+.exercice:first-of-type { border-top: none; padding-top: 0; }
+.exercice h3 { margin: 0 0 .8rem; color: var(--primary2); }
+
+/* CALLOUTS */
+.callout { border-radius: var(--radius); padding: .9rem 1.1rem; margin: 1.2rem 0; border-left: 4px solid; background: var(--surface2); }
+.callout.note   { border-color: var(--primary); }
+.callout.tip    { border-color: var(--success); }
+.callout.warn   { border-color: var(--warning); }
+.callout.danger { border-color: var(--danger); }
+.callout p:last-child { margin-bottom: 0; }
+.callout-title { font-weight: 700; font-size: .82rem; text-transform: uppercase; letter-spacing: .07em; margin-bottom: .4rem; }
+.callout.note   .callout-title { color: var(--primary); }
+.callout.tip    .callout-title { color: var(--success); }
+.callout.warn   .callout-title { color: var(--warning); }
+.callout.danger .callout-title { color: var(--danger); }
+
+/* TABLES */
+.table-wrap { overflow-x: auto; margin: 1rem 0; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th { background: var(--surface2); color: var(--primary2); text-align: left; padding: .6rem .9rem; font-weight: 600; border: 1px solid var(--border); }
+td { padding: .55rem .9rem; border: 1px solid var(--border); vertical-align: top; }
+tr:hover td { background: var(--surface2); }
+
+/* CODE */
+.code-block { position: relative; margin: 1rem 0; }
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1rem 1rem 1.2rem; overflow-x: auto; }
+code { font-family: 'Consolas', 'Cascadia Code', monospace; font-size: .88rem; color: var(--primary2); }
+p code, li code, td code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px; padding: .05rem .35rem; }
+.copy-btn {
+  position: absolute; top: .5rem; right: .5rem;
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted);
+  padding: .25rem .6rem; font-size: .75rem; border-radius: 5px; cursor: pointer; transition: all .2s;
+}
+.copy-btn:hover { background: var(--primary); color: #0d1117; }
+.copy-btn.copied { background: var(--success); color: #0d1117; }
+
+/* QUIZ */
+.quiz-question { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem; margin-bottom: 1.2rem; }
+.quiz-question h4 { color: var(--primary2); margin-bottom: .9rem; font-size: .98rem; }
+.quiz-options { display: flex; flex-direction: column; gap: .5rem; }
+.quiz-option {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: .6rem .9rem; cursor: pointer;
+  font-size: .9rem; transition: all .2s; text-align: left; color: var(--text);
+}
+.quiz-option:hover:not(:disabled) { border-color: var(--primary); }
+.quiz-option.correct { border-color: var(--success); color: var(--success); }
+.quiz-option.wrong   { border-color: var(--danger);  color: var(--danger);  }
+.quiz-option:disabled { cursor: default; }
+.quiz-feedback { margin-top: .6rem; font-size: .87rem; color: var(--text-muted); font-style: italic; }
+.quiz-score {
+  background: var(--surface2); border: 1px solid var(--primary);
+  border-radius: var(--radius); padding: 1.5rem; text-align: center; margin-top: 1.5rem; display: none;
+}
+.quiz-score .score-num { font-size: 2.5rem; font-weight: 700; color: var(--primary); }
+.quiz-score p { color: var(--text-muted); margin-top: .4rem; }
+.btn-restart { background: var(--primary); color: #0d1117; border: none; padding: .6rem 1.4rem; border-radius: 8px; font-weight: 700; cursor: pointer; margin-top: 1rem; font-size: .9rem; }
+.btn-restart:hover { background: var(--primary2); }
+
+/* RESPONSIVE — sidebar devient une barre horizontale sous 900px */
+@media (max-width: 900px) {
+  .layout { flex-direction: column; }
+  .sidebar {
+    position: static; width: 100%; height: auto; max-height: 40vh;
+    border-right: none; border-bottom: 1px solid var(--border);
+  }
+  .side-nav { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: .3rem; }
+  .side-nav button { border-left: none; border-bottom: 3px solid transparent; white-space: nowrap; border-radius: 6px 6px 0 0; }
+  .side-nav button.active { border-left-color: transparent; border-bottom-color: var(--primary); }
+  .side-nav-sep { display: none; }
+  .tab-content { padding: 1.5rem 1.2rem 3rem; }
+  .topbar a.chapter-title { font-size: .82rem; }
+}
+</style>
+<link rel="stylesheet" href="assets/course-common.css">
+<script src="assets/course-common.js" defer></script>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="badge">Python Avancé — Web Services</span>
+  <a class="chapter-title" href="index.html" title="Retour à l'accueil de la formation">
+    <span class="num">02</span><span class="txt">Concevoir et implémenter l&#x27;API Catalogue avec FastAPI</span>
+  </a>
+  <div class="topbar-links">
+    
+    <a class="topbar-link" href="index.html">Sommaire</a>
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Basculer entre thème clair et sombre">
+      <span id="theme-icon">🌙</span> <span id="theme-label">Sombre</span>
+    </button>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="objectifs"><span class="objectifs-label">Objectifs</span><ul><li>concevoir le contrat d&#x27;une API REST (ressources, URL, méthodes, codes de statut, pagination, erreurs)</li><li>choisir entre Flask, Sanic et FastAPI selon le besoin et expliquer la différence entre WSGI et ASGI</li><li>déclarer des routers et des méthodes avec FastAPI et lire la documentation OpenAPI générée</li><li>accepter des paramètres de chemin, de requête, d&#x27;en-tête et de corps, validés par des modèles Pydantic</li><li>renvoyer des erreurs uniformes au format Problem Details (RFC 9457)</li><li>protéger l&#x27;API avec l&#x27;authentification BASIC et Bearer et tester l&#x27;ensemble avec pytest et le client du jour 1</li></ul></div>
+    <nav class="side-nav" id="main-nav">
+      <button class="active" onclick="showTab('objectifs-pedagogiques')">Objectifs pédagogiques</button>
+  <button class="" onclick="showTab('organisation-de-la-journee')">Organisation de la journée</button>
+  <button class="" onclick="showTab('b3-bloc-3-90-min')">B3 bloc 3 · 90 min</button>
+  <button class="" onclick="showTab('b4-bloc-4-180-min')">B4 bloc 4 · 180 min</button>
+  <button class="" onclick="showTab('b5-bloc-4-atelier-90-min')">B5 bloc 4 (atelier) · 90 min</button>
+  <button class="" onclick="showTab('synthese-de-fin-de-journee')">Synthèse de fin de journée</button>
+  <button class="" onclick="showTab('annexe-commandes-du-jour-cheat-sheet')">Annexe — Commandes du jour (cheat-sheet)</button>
+    </nav>
+  </aside>
+  <div class="content">
+    <div id="tab-objectifs-pedagogiques" class="tab-content active">
+<p>À la fin de la journée, les stagiaires sont capables de :</p>
+<ul>
+<li>concevoir le contrat d'une API REST : ressources, URL, méthodes, codes de statut, pagination, erreurs ;</li>
+<li>choisir entre Flask, Sanic et FastAPI selon le besoin, et expliquer la différence entre WSGI et ASGI ;</li>
+<li>déclarer des routes et des méthodes avec FastAPI, puis lire la documentation OpenAPI générée ;</li>
+<li>accepter des paramètres de chemin, de requête, d'en-tête et de corps, validés par des modèles Pydantic ;</li>
+<li>renvoyer des erreurs uniformes au format Problem Details (RFC 9457) ;</li>
+<li>protéger l'API avec l'authentification BASIC et Bearer, puis la tester avec <code>pytest</code> et avec le client écrit le jour 1.</li>
+</ul>
+<h3>Livrable de la journée</h3>
+<p>Le dépôt <code>api-catalogue/</code> enrichi d'un service web <code>app/</code> qui expose :</p>
+<ul>
+<li>les formations (liste filtrée, triée et paginée, lecture, création, modification partielle, suppression) ;</li>
+<li>les interventions d'une formation (liste et création) ;</li>
+<li>une route d'administration protégée par BASIC ;</li>
+<li>des écritures protégées par un jeton Bearer avec portée ;</li>
+<li>une documentation Swagger UI générée automatiquement ;</li>
+<li>une suite de tests <code>pytest</code> et un script qui rejoue le scénario du jour 1 contre l'API locale.</li>
+</ul>
+<div class="callout note"><div class="callout-title">Choix pédagogique</div><p>Le stockage est <strong>en mémoire</strong> (un dictionnaire derrière une classe <code>Stockage</code>). La base de données n'est pas le sujet du jour : le contrat HTTP, la validation et la sécurité le sont. Le jour 3, l'ORM de Django remplacera ce stockage, et le <code>gorest_client</code> du jour 1 servira à vérifier que les deux implémentations respectent exactement le même contrat.</p></div>
+</div>
+
+<div id="tab-organisation-de-la-journee" class="tab-content">
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Heure</th>
+<th>Séquence</th>
+<th>Blocs programme</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>09h00 – 09h15</td>
+<td>Accueil, retour sur le jour 1, vérification des postes</td>
+<td>—</td>
+</tr>
+<tr>
+<td>09h15 – 09h55</td>
+<td><strong>Théorie</strong> — Concevoir une API REST : ressources, méthodes, sérialisation</td>
+<td>Bloc 3</td>
+</tr>
+<tr>
+<td>09h55 – 10h45</td>
+<td><strong>Pratique</strong> — Conception du contrat de l'API Catalogue</td>
+<td>Bloc 3</td>
+</tr>
+<tr>
+<td>10h45 – 11h00</td>
+<td>Pause</td>
+<td></td>
+</tr>
+<tr>
+<td>11h00 – 12h30</td>
+<td><strong>Pratique guidée</strong> — FastAPI : routers, paramètres, modèles Pydantic</td>
+<td>Bloc 4</td>
+</tr>
+<tr>
+<td>12h30 – 13h30</td>
+<td>Déjeuner</td>
+<td></td>
+</tr>
+<tr>
+<td>13h30 – 15h00</td>
+<td><strong>Pratique guidée</strong> — validation, erreurs, authentification BASIC et Bearer, tests</td>
+<td>Bloc 4</td>
+</tr>
+<tr>
+<td>15h00 – 15h15</td>
+<td>Pause</td>
+<td></td>
+</tr>
+<tr>
+<td>15h15 – 16h45</td>
+<td><strong>Atelier</strong> — Créer un service web avec FastAPI</td>
+<td>Bloc 4</td>
+</tr>
+<tr>
+<td>16h45 – 17h30</td>
+<td>Démonstrations, synthèse, aperçu du jour 3</td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout tip"><div class="callout-title">Rythme</div><p>Chaque notion est suivie d'une manipulation immédiate : le formateur démontre, les stagiaires reproduisent dans leur éditeur. Les sections <strong>🛠️ Micro-atelier</strong> durent de 10 à 25 minutes. Le code complet de l'atelier figure dans le support (section B5) : il sert de corrigé, pas de point de départ.</p></div>
+<hr />
+</div>
+
+<div id="tab-b3-bloc-3-90-min" class="tab-content">
+<h3>3.1 Du consommateur au concepteur</h3>
+<p>Hier, le contrat appartenait à quelqu'un d'autre. Aujourd'hui, <strong>les décisions de conception sont celles des stagiaires</strong>, et chacune a un coût pour les consommateurs : un nom de champ mal choisi, un code de statut incohérent ou une erreur illisible se paient pendant des années, parce qu'une API publiée ne se corrige pas aussi facilement qu'une fonction interne.</p>
+<p>Les contraintes REST vues le jour 1 se traduisent en décisions concrètes :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Contrainte REST</th>
+<th>Décision de conception pour l'API Catalogue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Client–serveur</td>
+<td>l'API ne renvoie que des données (JSON), jamais de HTML ni de logique d'affichage</td>
+</tr>
+<tr>
+<td>Sans état</td>
+<td>pas de intervention serveur : chaque requête porte son <code>Authorization</code>, la pagination utilise un curseur transmis par le client</td>
+</tr>
+<tr>
+<td>Cache</td>
+<td>les ressources lisibles peuvent exposer un <code>ETag</code> (extension de l'atelier)</td>
+</tr>
+<tr>
+<td>Interface uniforme</td>
+<td>URL en noms pluriels, verbes HTTP standard, mêmes codes de statut et même format d'erreur partout</td>
+</tr>
+<tr>
+<td>Système en couches</td>
+<td>l'API ne suppose pas être appelée directement : elle sera derrière un serveur, un proxy ou une passerelle</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout note"><div class="callout-title">Analogie : la carte d'un restaurant</div><p>La carte décrit ce qu'on peut commander (le contrat), pas comment la cuisine travaille (l'implémentation). Le cuisinier peut changer de four, de fournisseur ou de recette sans toucher à la carte, mais retirer un plat de la carte déçoit des clients. Le contrat OpenAPI joue le rôle de la carte.</p></div>
+<h3>3.2 Modéliser les ressources du catalogue</h3>
+<p>Une <strong>ressource</strong> est un concept métier que les consommateurs veulent lire ou modifier. On la choisit à partir du vocabulaire du métier, pas à partir des tables de la base de données.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Ressource</th>
+<th>Description</th>
+<th>Identifiant</th>
+<th>Relations</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>formation</code></td>
+<td>une formation du catalogue (code, title, durée, level)</td>
+<td>UUID</td>
+<td>possède des interventions</td>
+</tr>
+<tr>
+<td><code>intervention</code></td>
+<td>une date de réalisation d'une formation (début, location, places)</td>
+<td>UUID</td>
+<td>appartient à une formation</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Choix de l'identifiant.</strong> Le jour 1 a montré que GoRest est passé d'identifiants entiers à des UUID. Un identifiant séquentiel (<code>/formations/17</code>) révèle le volume de données et invite à deviner les voisins (<code>/formations/18</code>). Un <strong>UUID</strong> est opaque et peut être généré par n'importe quel client ou serveur sans coordination. Le <code>code</code> métier (<code>PYT100614-F</code>) reste un champ de la ressource, unique mais distinct de l'identifiant technique.</p>
+<p><strong>Les règles de nommage d'URL</strong>, déjà aperçues le jour 1, deviennent ici des règles à appliquer :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>À faire</th>
+<th>À éviter</th>
+<th>Pourquoi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /v1/formations</code></td>
+<td><code>GET /v1/getFormations</code></td>
+<td>le verbe est dans la méthode HTTP</td>
+</tr>
+<tr>
+<td><code>GET /v1/formations/{id}</code></td>
+<td><code>GET /v1/formation?id=12</code></td>
+<td>un élément a sa propre URL</td>
+</tr>
+<tr>
+<td><code>DELETE /v1/formations/{id}</code></td>
+<td><code>POST /v1/formations/{id}/supprimer</code></td>
+<td><code>DELETE</code> existe</td>
+</tr>
+<tr>
+<td><code>GET /v1/formations/{id}/interventions</code></td>
+<td><code>GET /v1/interventions?formation=…</code> comme seule option</td>
+<td>la relation de contenance est visible dans l'URL</td>
+</tr>
+<tr>
+<td><code>/v1/formations</code> (pluriel)</td>
+<td><code>/v1/formation</code></td>
+<td>une collection est un pluriel, partout</td>
+</tr>
+<tr>
+<td><code>/v1/formations</code> en minuscules</td>
+<td><code>/v1/Formations</code></td>
+<td>les URL sont sensibles à la casse</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout tip"><div class="callout-title">Profondeur maximale</div><p>Limiter l'imbrication à deux levelx (<code>/formations/{id}/interventions</code>). Au-delà, exposer la ressource enfant à la racine avec un filtre : <code>/v1/interventions?filter[formation_id]=…</code>.</p></div>
+<p><strong>Le versionnement dès le premier jour.</strong> Le préfixe <code>/v1</code> figure dans toutes les URL. Le jour 1 a montré ce qu'un changement incompatible casse chez les consommateurs : la version 2 d'une API se publie sous <code>/v2</code>, pendant que <code>/v1</code> continue de répondre le temps de la migration.</p>
+<h3>3.3 Choisir les méthodes, les URL et les codes de statut</h3>
+<p>Le tableau ci-dessous est le <strong>contrat de la ressource <code>formation</code></strong> que les stagiaires implémenteront dans l'atelier :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Méthode et URL</th>
+<th>Corps de requête</th>
+<th>Succès</th>
+<th>Erreurs possibles</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lister</td>
+<td><code>GET /v1/formations</code></td>
+<td>—</td>
+<td><code>200</code> + page</td>
+<td><code>400</code> (curseur invalide), <code>422</code> (paramètre invalide)</td>
+</tr>
+<tr>
+<td>Lire</td>
+<td><code>GET /v1/formations/{id}</code></td>
+<td>—</td>
+<td><code>200</code></td>
+<td><code>404</code>, <code>422</code> (UUID mal formé)</td>
+</tr>
+<tr>
+<td>Créer</td>
+<td><code>POST /v1/formations</code></td>
+<td>formation complète</td>
+<td><code>201</code> + en-tête <code>Location</code></td>
+<td><code>401</code>, <code>403</code>, <code>409</code> (code déjà utilisé), <code>422</code></td>
+</tr>
+<tr>
+<td>Modifier</td>
+<td><code>PATCH /v1/formations/{id}</code></td>
+<td>champs à changer</td>
+<td><code>200</code> + formation à jour</td>
+<td><code>401</code>, <code>403</code>, <code>404</code>, <code>422</code></td>
+</tr>
+<tr>
+<td>Supprimer</td>
+<td><code>DELETE /v1/formations/{id}</code></td>
+<td>—</td>
+<td><code>204</code> sans corps</td>
+<td><code>401</code>, <code>403</code>, <code>404</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Les règles derrière le tableau :</strong></p>
+<ul>
+<li><strong><code>POST</code> renvoie <code>201 Created</code></strong> et l'en-tête <code>Location</code> qui contient l'URL de la ressource créée. Le corps de la réponse reprend la ressource complète, <code>id</code> compris : le client n'a pas à la relire.</li>
+<li><strong><code>PATCH</code> plutôt que <code>PUT</code></strong> : le client n'envoie que les champs à changer (JSON Merge Patch, vu le jour 1 avec GoRest). Un <code>PUT</code> obligerait à renvoyer tous les champs et ferait perdre ceux qu'on oublie.</li>
+<li><strong><code>DELETE</code> renvoie <code>204 No Content</code></strong>, sans corps. Un second <code>DELETE</code> sur la même ressource renvoie <code>404</code> : l'état final est identique (la ressource n'existe pas), seule la réponse diffère. La méthode reste idempotente au sens HTTP.</li>
+<li><strong><code>401</code> ou <code>403</code></strong> : identité inconnue contre droit manquant (jour 1).</li>
+<li><strong><code>409 Conflict</code></strong> : la requête est valide en elle-même, mais incompatible avec l'état actuel (code déjà pris).</li>
+<li><strong><code>422 Unprocessable Content</code></strong> : la requête est bien formée, mais une donnée est invalide. <code>400</code> est réservé aux requêtes qu'on ne peut même pas interpréter (curseur illisible, corps qui n'est pas du JSON).</li>
+</ul>
+<p><strong>Les actions qui ne sont pas du CRUD.</strong> Annuler une intervention n'est ni une création ni une suppression de ressource. Trois façons de le modéliser :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Approche</th>
+<th>Exemple</th>
+<th>Quand l'utiliser</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Changer un champ d'état</td>
+<td><code>PATCH /v1/interventions/{id}</code> avec <code>{"statut": "annulee"}</code></td>
+<td>l'état est une propriété naturelle de la ressource</td>
+</tr>
+<tr>
+<td>Créer une ressource d'événement</td>
+<td><code>POST /v1/interventions/{id}/annulations</code></td>
+<td>on veut conserver la trace (motif, date)</td>
+</tr>
+<tr>
+<td>Sous-ressource d'action</td>
+<td><code>POST /v1/interventions/{id}/annuler</code></td>
+<td>dernier recours, quand aucune des deux autres ne convient</td>
+</tr>
+</tbody>
+</table></div>
+<p>Pour le fil rouge, l'annulation passe par un champ <code>statut</code> modifiable.</p>
+<h3>3.4 La sérialisation des données</h3>
+<p><strong>Sérialiser</strong> consiste à transformer un objet Python en texte (JSON) pour l'envoyer ; <strong>désérialiser</strong> fait l'opération inverse à la réception. Entre les deux, les types Python et les types JSON ne se correspondent pas toujours.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Python</th>
+<th>JSON</th>
+<th>Remarques</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>str</code></td>
+<td>chaîne</td>
+<td>encodage UTF-8</td>
+</tr>
+<tr>
+<td><code>int</code>, <code>float</code></td>
+<td>nombre</td>
+<td>JSON ne distingue pas entier et décimal</td>
+</tr>
+<tr>
+<td><code>bool</code></td>
+<td><code>true</code> / <code>false</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>None</code></td>
+<td><code>null</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>list</code>, <code>tuple</code></td>
+<td>tableau</td>
+<td></td>
+</tr>
+<tr>
+<td><code>dict</code></td>
+<td>objet</td>
+<td>clés obligatoirement des chaînes</td>
+</tr>
+<tr>
+<td><code>datetime</code>, <code>date</code></td>
+<td><strong>aucun</strong></td>
+<td>à écrire en chaîne ISO 8601</td>
+</tr>
+<tr>
+<td><code>UUID</code></td>
+<td><strong>aucun</strong></td>
+<td>à écrire en chaîne</td>
+</tr>
+<tr>
+<td><code>Decimal</code></td>
+<td><strong>aucun</strong></td>
+<td>à écrire en chaîne pour ne pas perdre de précision</td>
+</tr>
+<tr>
+<td><code>Enum</code></td>
+<td><strong>aucun</strong></td>
+<td>à écrire par sa valeur</td>
+</tr>
+</tbody>
+</table></div>
+<div class="code-block"><pre><code class="language-python">import datetime, json
+
+json.dumps({&quot;debut&quot;: datetime.date(2027, 3, 15)})
+# TypeError: Object of type date is not JSON serializable
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Le module standard <code>json</code> ne sait pas sérialiser les dates ni les UUID. Un framework d'API prend ce travail en charge : <strong>FastAPI s'appuie sur Pydantic pour convertir les types Python vers JSON, et inversement</strong>. Le développeur déclare un type (<code>date</code>, <code>UUID</code>, <code>Enum</code>), la conversion et la validation suivent.</p>
+<p><strong>Conventions de format à fixer dès la conception :</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Sujet</th>
+<th>Convention retenue pour l'API Catalogue</th>
+<th>Justification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dates</td>
+<td>ISO 8601 : <code>2027-03-15</code></td>
+<td>lisible, triable, reconnu partout</td>
+</tr>
+<tr>
+<td>Dates et heures</td>
+<td>ISO 8601 en UTC avec suffixe <code>Z</code> : <code>2026-11-16T09:00:00Z</code></td>
+<td>évite les ambiguïtés de fuseau</td>
+</tr>
+<tr>
+<td>Montants</td>
+<td>chaîne décimale ou entier en centimes, jamais un <code>float</code></td>
+<td>les flottants ne représentent pas exactement 0,1</td>
+</tr>
+<tr>
+<td>Noms de champs</td>
+<td><code>snake_case</code></td>
+<td>cohérent avec Python et avec GoRest</td>
+</tr>
+<tr>
+<td>Absence de valeur</td>
+<td>champ présent avec <code>null</code></td>
+<td>le consommateur n'a pas à tester l'existence de la clé</td>
+</tr>
+<tr>
+<td>Énumérations</td>
+<td>valeurs en minuscules sans accent (<code>avance</code>)</td>
+<td>pas de problème d'encodage dans les filtres</td>
+</tr>
+<tr>
+<td>Collections</td>
+<td>enveloppe <code>{"data": [...], "meta": {...}}</code></td>
+<td>on peut ajouter des métadonnées sans casser les clients</td>
+</tr>
+<tr>
+<td>Langue des messages d'erreur</td>
+<td>français pour <code>detail</code>, anglais pour <code>code</code></td>
+<td><code>code</code> est stable et sert au traitement automatique</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout warn"><div class="callout-title">Une enveloppe se décide au début</div><p>Renvoyer directement un tableau JSON (<code>[{...}, {...}]</code>) est tentant, mais interdit d'ajouter plus tard le curseur de pagination ou un total sans casser tous les clients. C'est précisément la différence que le jour 1 a relevée entre GoRest v2 (tableau nu) et v3 (enveloppe).</p></div>
+<h3>3.5 Concevoir les listes : filtres, tri, pagination</h3>
+<p>Le contrat d'une liste est plus riche que celui d'un élément. Pour garder la compatibilité avec le client du jour 1, l'API Catalogue reprend les conventions de GoRest v3 :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Paramètre</th>
+<th>Rôle</th>
+<th>Exemple</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>filter[level]</code></td>
+<td>filtre sur une valeur</td>
+<td><code>?filter[level]=avance</code></td>
+</tr>
+<tr>
+<td><code>sort</code></td>
+<td>tri ; préfixe <code>-</code> pour décroissant</td>
+<td><code>?sort=-duration</code></td>
+</tr>
+<tr>
+<td><code>page[size]</code></td>
+<td>éléments par page, de 1 à 100 (25 par défaut)</td>
+<td><code>?page[size]=10</code></td>
+</tr>
+<tr>
+<td><code>page[after]</code></td>
+<td>curseur opaque de la page suivante</td>
+<td><code>?page[after]=Mg==</code></td>
+</tr>
+<tr>
+<td><code>page[count]</code></td>
+<td>ajoute <code>meta.total</code> si <code>true</code></td>
+<td><code>?page[count]=true</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>La réponse d'une liste :</p>
+<div class="code-block"><pre><code class="language-json">{
+  &quot;data&quot;: [ { &quot;id&quot;: &quot;…&quot;, &quot;code&quot;: &quot;PYT100614-F&quot;, &quot;title&quot;: &quot;Python Avancé : Web Services&quot; } ],
+  &quot;meta&quot;: { &quot;has_more&quot;: true, &quot;next_cursor&quot;: &quot;Mg==&quot;, &quot;total&quot;: null }
+}
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Le curseur est <strong>opaque pour le client</strong> : ici, le décalage encodé en base64. Le serveur reste libre de changer cette représentation plus tard (curseur basé sur une date, sur un identifiant) sans casser personne.</p>
+<h3>3.6 Conseils pour créer de bons points d'entrée</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Conseil</th>
+<th>Détail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Un format d'erreur unique</td>
+<td>toutes les erreurs, y compris celles du framework (<code>404</code>, <code>405</code>, <code>422</code>, <code>500</code>), suivent Problem Details</td>
+</tr>
+<tr>
+<td>Des codes de statut précis</td>
+<td>ne jamais renvoyer <code>200</code> avec <code>{"erreur": "..."}</code> dans le corps</td>
+</tr>
+<tr>
+<td>Idempotence documentée</td>
+<td>dire quelles méthodes se rejouent sans risque, et accepter <code>Idempotency-Key</code> sur les <code>POST</code> sensibles</td>
+</tr>
+<tr>
+<td>Validation stricte des entrées</td>
+<td>types, bornes, longueurs, énumérations : tout ce qui entre est suspect</td>
+</tr>
+<tr>
+<td>Pas de fuite d'information</td>
+<td>un <code>500</code> ne renvoie jamais de trace Python ; un identifiant ou un mot de passe faux donnent le même message</td>
+</tr>
+<tr>
+<td>Limites explicites</td>
+<td>taille maximale de page, taille maximale du corps, quotas par jeton</td>
+</tr>
+<tr>
+<td>Compatibilité ascendante</td>
+<td>ajouter un champ est sans risque ; renommer, retirer ou changer le type d'un champ exige une nouvelle version</td>
+</tr>
+<tr>
+<td>Documentation exécutable</td>
+<td>le contrat OpenAPI est généré et testé, pas rédigé à côté</td>
+</tr>
+<tr>
+<td>Journalisation utile</td>
+<td>un identifiant de requête (<code>request_id</code>) dans chaque réponse d'erreur et chaque ligne de log</td>
+</tr>
+</tbody>
+</table></div>
+<h3>🛠️ Micro-atelier 5 — Concevoir le contrat de la ressource <code>intervention</code> (25 min)</h3>
+<p><strong>Consignes</strong> (en binômes, sur papier, tableau ou éditeur) :</p>
+<ol>
+<li>lister les champs d'une <code>intervention</code> (nom, type, obligatoire ou non, contraintes) ;</li>
+<li>écrire le tableau « action, méthode et URL, corps, succès, erreurs » des opérations <strong>liste</strong> et <strong>création</strong> d'une intervention d'une formation ;</li>
+<li>décider de la réponse quand la formation parente n'existe pas (<code>404</code>) et quand la date de début est dans le passé (<code>422</code>) ;</li>
+<li>proposer la manière d'annuler une intervention.</li>
+</ol>
+<p><strong>Corrigé formateur.</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Champ</th>
+<th>Type</th>
+<th>Obligatoire</th>
+<th>Contraintes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>UUID</td>
+<td>généré par le serveur</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>formation_id</code></td>
+<td>UUID</td>
+<td>généré à partir de l'URL</td>
+<td>formation existante</td>
+</tr>
+<tr>
+<td><code>start_date</code></td>
+<td>date ISO 8601</td>
+<td>oui</td>
+<td>postérieure à aujourd'hui</td>
+</tr>
+<tr>
+<td><code>location</code></td>
+<td>texte</td>
+<td>oui</td>
+<td>2 à 80 caractères</td>
+</tr>
+<tr>
+<td><code>places</code></td>
+<td>entier</td>
+<td>oui</td>
+<td>de 1 à 30</td>
+</tr>
+<tr>
+<td><code>statut</code></td>
+<td>énumération</td>
+<td>non (défaut <code>planifiee</code>)</td>
+<td><code>planifiee</code>, <code>confirmee</code>, <code>annulee</code></td>
+</tr>
+</tbody>
+</table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Méthode et URL</th>
+<th>Succès</th>
+<th>Erreurs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lister</td>
+<td><code>GET /v1/formations/{id}/interventions</code></td>
+<td><code>200</code> + page</td>
+<td><code>404</code> (formation inconnue)</td>
+</tr>
+<tr>
+<td>Créer</td>
+<td><code>POST /v1/formations/{id}/interventions</code></td>
+<td><code>201</code> + intervention créée</td>
+<td><code>401</code>, <code>403</code>, <code>404</code>, <code>422</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><img alt="Contrat de l'API Catalogue" src="../contenus/contrat-api-catalogue.svg" /></p>
+<p><strong>Point de contrôle</strong> : chaque binôme présente un écart par rapport au corrigé et le justifie. Un écart justifié (par exemple <code>409</code> plutôt que <code>422</code> pour un doublon) est accepté, tant qu'il est appliqué de façon <strong>cohérente</strong> à toute l'API.</p>
+<hr />
+</div>
+
+<div id="tab-b4-bloc-4-180-min" class="tab-content">
+<h3>4.1 Les bibliothèques d'API REST en Python</h3>
+<p><strong>Pourquoi un framework ?</strong> Écrire un service web avec la seule bibliothèque standard (<code>http.server</code>) oblige à analyser soi-même les URL, décoder le JSON, valider les champs, formater les erreurs et gérer la concurrence. Un framework fournit ces briques, éprouvées et documentées.</p>
+<p><strong>WSGI et ASGI : deux interfaces entre le serveur et l'application.</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th><strong>WSGI</strong></th>
+<th><strong>ASGI</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Modèle</td>
+<td>synchrone : un thread ou un processus traite une requête de bout en bout</td>
+<td>asynchrone : une boucle d'événements traite beaucoup de connexions à la fois</td>
+</tr>
+<tr>
+<td>Connexions longues (WebSocket, flux)</td>
+<td>non</td>
+<td>oui</td>
+</tr>
+<tr>
+<td>Serveurs applicatifs courants</td>
+<td>Gunicorn, uWSGI</td>
+<td>Uvicorn, Hypercorn</td>
+</tr>
+<tr>
+<td>Frameworks</td>
+<td>Flask, Django (mode classique)</td>
+<td>FastAPI, Starlette, Sanic (serveur intégré), Django (mode ASGI)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Un framework ASGI peut exécuter à la fois des fonctions asynchrones (<code>async def</code>) et des fonctions classiques (<code>def</code>). Les serveurs et le déploiement sont détaillés le jour 3.</p>
+<p><strong>Les trois frameworks du programme :</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Critère</th>
+<th><strong>Flask</strong></th>
+<th><strong>Sanic</strong></th>
+<th><strong>FastAPI</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Philosophie</td>
+<td>micro-framework, minimal et extensible</td>
+<td>serveur asynchrone intégré, performance</td>
+<td>typage Python et validation avant tout</td>
+</tr>
+<tr>
+<td>Interface</td>
+<td>WSGI</td>
+<td>serveur propre, ASGI possible</td>
+<td>ASGI (bâti sur Starlette)</td>
+</tr>
+<tr>
+<td>Validation des entrées</td>
+<td>via extensions (Marshmallow, Pydantic, etc.)</td>
+<td>via extensions</td>
+<td><strong>native</strong> (Pydantic)</td>
+</tr>
+<tr>
+<td>Documentation OpenAPI</td>
+<td>via extensions</td>
+<td>via l'extension <code>sanic-ext</code></td>
+<td><strong>native</strong>, générée à partir des annotations</td>
+</tr>
+<tr>
+<td>Authentification</td>
+<td>via extensions</td>
+<td>via extensions ou code maison</td>
+<td>utilitaires de sécurité fournis (BASIC, Bearer, OAuth2)</td>
+</tr>
+<tr>
+<td>Courbe d'apprentissage</td>
+<td>très douce</td>
+<td>douce</td>
+<td>douce si l'on connaît les annotations de type</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Le même point d'entrée, trois fois.</strong> <code>GET /formations/{code}</code> dans chaque framework, avec un dictionnaire comme stockage :</p>
+<div class="code-block"><pre><code class="language-python"># Flask
+from flask import Flask, abort
+
+app = Flask(__name__)
+FORMATIONS = {&quot;PYT100614-F&quot;: {&quot;code&quot;: &quot;PYT100614-F&quot;, &quot;title&quot;: &quot;Python Avancé : Web Services&quot;}}
+
+@app.get(&quot;/formations/&lt;code&gt;&quot;)
+def lire(code: str):
+    if code not in FORMATIONS:
+        abort(404)
+    return FORMATIONS[code]
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-python"># Sanic
+from sanic import Sanic
+from sanic.exceptions import NotFound
+from sanic.response import json
+
+app = Sanic(&quot;catalogue&quot;)
+
+@app.get(&quot;/formations/&lt;code&gt;&quot;)
+async def lire(request, code: str):
+    if code not in FORMATIONS:
+        raise NotFound(&quot;Formation inconnue&quot;)
+    return json(FORMATIONS[code])
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-python"># FastAPI
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+class FormationSchema(BaseModel):
+    code: str
+    title: str
+
+app = FastAPI()
+
+@app.get(&quot;/formations/{code}&quot;)
+def lire(code: str) -&gt; FormationResponse:
+    if code not in FORMATIONS:
+        raise HTTPException(status_code=404, detail=&quot;Formation inconnue&quot;)
+    return FORMATIONS[code]
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Les trois versions se ressemblent. La différence apparaît ailleurs : dans la version FastAPI, le modèle <code>FormationSchema</code> <strong>valide</strong> la réponse, <strong>documente</strong> le schéma dans OpenAPI et fournit l'autocomplétion à l'éditeur, sans code supplémentaire.</p>
+<p><strong>Choix pour la formation : FastAPI</strong>, pour trois raisons : la validation et la documentation sortent des annotations de type que les stagiaires maîtrisent déjà ; le contrat OpenAPI est généré automatiquement (section 1.6 du jour 1) ; le client de test <code>TestClient</code> est fourni. Flask reste un très bon choix pour un petit service ou une application web avec gabarits ; Sanic, quand l'asynchrone et le débit priment sur l'écosystème.</p>
+<div class="callout tip"><div class="callout-title">Et Django ?</div><p>Django dispose de ses propres solutions pour les API (Django REST framework, Django-Ninja), étudiées le jour 3. On les choisit quand l'application a déjà un modèle de données Django, une administration et une authentification à réutiliser.</p></div>
+<h3>4.2 Installer FastAPI et démarrer</h3>
+<div class="code-block"><pre><code class="language-bash"># dans api-catalogue/, environnement virtuel actif (jour 1)
+pip install &quot;fastapi[standard]&quot;
+pip freeze &gt; requirements.txt
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>L'option <code>standard</code> installe FastAPI avec ses outils usuels : le serveur Uvicorn, la commande <code>fastapi</code> et la bibliothèque <code>httpx</code> qui sert au client de test.</p>
+<p><strong>Arborescence de départ</strong> :</p>
+<div class="code-block"><pre><code>api-catalogue/
+├── gorest_client/        # jour 1
+├── app/
+│   ├── __init__.py          # fichier vide : app est un package
+│   └── main.py
+└── pyproject.toml
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-toml"># pyproject.toml
+[tool.fastapi]
+entrypoint = &quot;app.main:app&quot;
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-python"># app/main.py
+from fastapi import FastAPI
+
+app = FastAPI(title=&quot;API Catalogue&quot;, version=&quot;1.0.0&quot;)
+
+
+@app.get(&quot;/v1/health&quot;)
+def health() -&gt; dict[str, str]:
+    return {&quot;statut&quot;: &quot;ok&quot;}
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-bash">fastapi dev
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>La commande <code>fastapi dev</code> démarre un serveur de développement avec <strong>rechargement automatique</strong> à chaque modification de fichier. La console affiche une ligne du type <code>Uvicorn running on http://127.0.0.1:8000</code>.</p>
+<p><strong>Trois adresses fournies sans rien écrire :</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>URL</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>http://127.0.0.1:8000/docs</code></td>
+<td>Swagger UI : documentation interactive, avec un bouton « Try it out »</td>
+</tr>
+<tr>
+<td><code>http://127.0.0.1:8000/redoc</code></td>
+<td>ReDoc : documentation de lecture, présentation alternative</td>
+</tr>
+<tr>
+<td><code>http://127.0.0.1:8000/openapi.json</code></td>
+<td>le contrat OpenAPI brut, lisible par les outils (Postman, Bruno, générateurs de client)</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout warn"><div class="callout-title"><code>fastapi dev</code> n'est pas un serveur de production</div><p>Le mode <code>dev</code> active le rechargement automatique et écoute en local uniquement. La mise en production (Uvicorn ou Gunicorn derrière un proxy) est traitée le jour 3. Si la commande <code>fastapi</code> n'est pas reconnue, vérifier que l'environnement virtuel est actif, ou lancer <code>uvicorn app.main:app --reload --host 0.0.0.0</code> pour écouter sur toutes les interfaces réseau.</p></div>
+<h3>🛠️ Micro-atelier 6 — Première route et premier contrat (15 min)</h3>
+<ol>
+<li>Créer <code>app/__init__.py</code>, <code>app/main.py</code> et <code>pyproject.toml</code> comme ci-dessus, puis démarrer <code>fastapi dev</code>.</li>
+<li>Appeler la route avec <code>curl.exe -i http://127.0.0.1:8000/v1/health</code> : relever le statut, le <code>Content-Type</code> et le corps.</li>
+<li>Ouvrir <code>/docs</code>, déplier la route, cliquer sur <strong>Try it out</strong> puis <strong>Execute</strong>.</li>
+<li>Ouvrir <code>/openapi.json</code> et retrouver le chemin <code>/v1/health</code> et sa méthode.</li>
+<li>Modifier le titre de l'application : constater le rechargement automatique et le changement dans <code>/docs</code>.</li>
+</ol>
+<p><strong>Question de réflexion.</strong> Le code ne comporte aucune ligne de documentation. D'où viennent les informations de <code>/docs</code> ? <em>(Réponse : des décorateurs, des annotations de type et des modèles Pydantic : FastAPI les lit et produit le contrat OpenAPI.)</em></p>
+<h3>4.3 Déclarer des routes et des méthodes</h3>
+<p>Une <strong>opération de chemin</strong> (path operation) combine une méthode HTTP, un chemin et une fonction :</p>
+<div class="code-block"><pre><code class="language-python">@app.get(&quot;/v1/formations&quot;)           # GET
+@app.post(&quot;/v1/formations&quot;)          # POST
+@app.patch(&quot;/v1/formations/{id}&quot;)    # PATCH
+@app.delete(&quot;/v1/formations/{id}&quot;)   # DELETE
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Les décorateurs acceptent des options qui alimentent à la fois le <strong>comportement</strong> et la <strong>documentation</strong> :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Effet</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>status_code=201</code></td>
+<td>code renvoyé en cas de succès (aussi affiché dans OpenAPI)</td>
+</tr>
+<tr>
+<td><code>response_model=FormationResponse</code></td>
+<td>modèle de la réponse : filtre, valide et documente</td>
+</tr>
+<tr>
+<td><code>tags=["formations"]</code></td>
+<td>regroupe les routes dans <code>/docs</code></td>
+</tr>
+<tr>
+<td><code>summary="Lister les formations"</code></td>
+<td>titre court ; la docstring de la fonction sert de description</td>
+</tr>
+<tr>
+<td><code>responses={404: {"description": "Formation inconnue"}}</code></td>
+<td>documente les codes d'erreur possibles</td>
+</tr>
+<tr>
+<td><code>dependencies=[Depends(...)]</code></td>
+<td>exécute des vérifications avant la route (authentification)</td>
+</tr>
+<tr>
+<td><code>response_class=Response</code></td>
+<td>permet une réponse sans corps (<code>204</code>)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Organiser les routes avec <code>APIRouter</code>.</strong> Une application réelle ne tient pas dans un seul fichier. Chaque ressource a son module, avec son propre routeur, assemblé dans <code>main.py</code> :</p>
+<div class="code-block"><pre><code class="language-python"># app/routers/formations.py
+from fastapi import APIRouter
+
+router = APIRouter(prefix=&quot;/formations&quot;, tags=[&quot;formations&quot;])
+
+@router.get(&quot;&quot;)
+def lister_formations(): ...
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-python"># app/main.py
+from fastapi import APIRouter, FastAPI
+from .routers import formations
+
+version = APIRouter(prefix=&quot;/v1&quot;)
+version.include_router(formations.router)
+
+app = FastAPI(title=&quot;API Catalogue&quot;, version=&quot;1.0.0&quot;)
+app.include_router(version)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>L'URL finale est la concaténation des préfixes : <code>/v1</code> + <code>/formations</code> + <code>""</code> donne <code>/v1/formations</code>. Changer de version, plus tard, consiste à ajouter un second routeur <code>/v2</code>.</p>
+<p><strong><code>def</code> ou <code>async def</code> ?</strong> FastAPI accepte les deux, avec des conséquences différentes :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Déclaration</th>
+<th>Exécution</th>
+<th>À utiliser quand</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>def route(...)</code></td>
+<td>dans un <strong>pool de threads</strong>, sans bloquer la boucle d'événements</td>
+<td>la fonction appelle du code bloquant : <code>requests</code>, un pilote de base de données synchrone, un fichier</td>
+</tr>
+<tr>
+<td><code>async def route(...)</code></td>
+<td><strong>directement sur la boucle</strong> d'événements</td>
+<td>la fonction n'utilise que des appels asynchrones (<code>await httpx...</code>, pilote de base asynchrone)</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout danger"><div class="callout-title">Un appel bloquant dans <code>async def</code> fige tout le serveur</div><p>Un <code>time.sleep(5)</code> ou un <code>requests.get(...)</code> placé dans une route <code>async def</code> bloque la boucle d'événements : <strong>toutes</strong> les requêtes en cours attendent. Dans le doute, déclarer <code>def</code> : FastAPI s'occupe du pool de threads. Les routes de l'atelier sont des <code>def</code>, car le stockage est en mémoire et le code est synchrone.</p></div>
+<p><strong>Démonstration du formateur</strong> (5 min) : deux routes, l'une <code>def</code>, l'autre <code>async def</code>, contenant <code>time.sleep(5)</code> ; appeler la seconde deux fois en parallèle avec deux terminaux et constater que les réponses arrivent l'une après l'autre.</p>
+<h3>4.4 Accepter des paramètres</h3>
+<p>FastAPI déduit l'<strong>origine</strong> de chaque paramètre à partir de la signature de la fonction :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Le paramètre…</th>
+<th>…vient de</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>apparaît dans le chemin (<code>/{formation_id}</code>)</td>
+<td><strong>chemin</strong></td>
+</tr>
+<tr>
+<td>est un type simple (<code>int</code>, <code>str</code>, <code>bool</code>, <code>Enum</code>…) absent du chemin</td>
+<td><strong>chaîne de requête</strong> (query)</td>
+</tr>
+<tr>
+<td>est un modèle Pydantic</td>
+<td><strong>corps</strong> JSON</td>
+</tr>
+<tr>
+<td>est déclaré avec <code>Header(...)</code>, <code>Cookie(...)</code>, <code>Query(...)</code>, <code>Body(...)</code></td>
+<td>l'emplacement indiqué explicitement</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Paramètres de chemin typés.</strong> Le type de l'annotation sert de validation et de conversion :</p>
+<div class="code-block"><pre><code class="language-python">import uuid
+
+@router.get(&quot;/{formation_id}&quot;)
+def lire_formation(formation_id: uuid.UUID) -&gt; FormationResponse:
+    ...
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Appelée avec <code>/v1/formations/abc</code>, la route répond <code>422</code> avant même d'exécuter la fonction : <code>abc</code> n'est pas un UUID. La fonction reçoit un vrai objet <code>uuid.UUID</code>.</p>
+<p><strong>Paramètres de requête avec valeurs par défaut et contraintes :</strong></p>
+<div class="code-block"><pre><code class="language-python">from typing import Annotated, Literal
+from fastapi import Query
+
+@router.get(&quot;&quot;)
+def lister_formations(
+    level: Annotated[Level | None, Query(alias=&quot;filter[level]&quot;)] = None,
+    sort: Annotated[Literal[&quot;code&quot;, &quot;-code&quot;, &quot;title&quot;, &quot;-title&quot;], Query(alias=&quot;sort&quot;)] = &quot;code&quot;,
+    size: Annotated[int, Query(alias=&quot;page[size]&quot;, ge=1, le=100)] = 25,
+    after: Annotated[str | None, Query(alias=&quot;page[after]&quot;)] = None,
+):
+    ...
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Points à retenir :</p>
+<ul>
+<li><code>Annotated[type, Query(...)]</code> est la forme recommandée : le type et ses contraintes sont réunis, la valeur par défaut reste une vraie valeur par défaut Python ;</li>
+<li><code>alias="page[size]"</code> est indispensable, car <code>page[size]</code> n'est pas un nom de variable Python valide ; le nom Python (<code>size</code>) et le nom exposé (<code>page[size]</code>) sont découplés ;</li>
+<li><code>ge</code>, <code>le</code>, <code>min_length</code>, <code>max_length</code>, <code>pattern</code> expriment les contraintes, et apparaissent dans la documentation ;</li>
+<li><code>Literal[...]</code> ou une <code>Enum</code> limite les valeurs autorisées : un tri sur un champ inexistant est refusé avec un <code>422</code> au location de provoquer une erreur interne ;</li>
+<li>un paramètre <strong>sans valeur par défaut</strong> est <strong>obligatoire</strong>.</li>
+</ul>
+<p><strong>Paramètres d'en-tête :</strong></p>
+<div class="code-block"><pre><code class="language-python">
+from fastapi import Header
+
+@router.post(&quot;&quot;)
+def creer(idempotency_key: Annotated[str | None, Header()] = None): ...
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>FastAPI convertit <code>idempotency_key</code> en <code>Idempotency-Key</code> (les underscores deviennent des tirets) <strong>cf chapitre 1</strong>.</p>
+<p><strong>Corps de requête.</strong> Un paramètre dont le type est un modèle Pydantic est lu dans le corps JSON, validé, puis converti :</p>
+<div class="code-block"><pre><code class="language-python">@router.post(&quot;&quot;, status_code=201)
+def creer_formation(data: FormationCreate) -&gt; FormationResponse:
+    ...
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Si le corps n'est pas du JSON valide, ou si un champ est absent ou invalide, la fonction n'est jamais appelée.</p>
+<h3>4.5 Les modèles Pydantic : valider et documenter les données</h3>
+<p><strong>Pydantic</strong> définit des <strong>modèles</strong> : des classes dont les attributs sont typés. À la construction, les données sont validées et converties ; en cas d'écart, une exception décrit précisément chaque erreur.</p>
+<div class="code-block"><pre><code class="language-python">import uuid
+from datetime import datetime
+from enum import Enum
+
+from pydantic import BaseModel as BaseSchema, ConfigDict, Field
+
+
+class Level(str, Enum):
+    beginner = &quot;initiation&quot;
+    medium = &quot;intermédiaire&quot;
+    advanced = &quot;avancé&quot;
+
+
+class FormationSchema(BaseSchema):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    code: str = Field(pattern=r&quot;^[A-Z]{3}\d{6}-[A-Z]$&quot;, examples=[&quot;PYT100614-F&quot;])
+    title: str = Field(min_length=3, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    duration: int = Field(ge=1, le=10)
+    level: Level
+
+# pour les réponses incluant l'identifiant et les dates de création et de mise à jour
+class FormationResponse(FormationSchema):
+    id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Élément</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>class X(BaseModel)</code></td>
+<td>déclare un modèle ; les attributs annotés deviennent des champs</td>
+</tr>
+<tr>
+<td><code>Field(...)</code></td>
+<td>contraintes (<code>ge</code>, <code>le</code>, <code>min_length</code>, <code>pattern</code>…), valeur par défaut, exemples pour la documentation</td>
+</tr>
+<tr>
+<td><code>str \| None = None</code></td>
+<td>champ facultatif et nullable</td>
+</tr>
+<tr>
+<td><code>Enum</code></td>
+<td>valeurs autorisées limitées à une liste fermée</td>
+</tr>
+<tr>
+<td><code>ConfigDict(str_strip_whitespace=True)</code></td>
+<td>supprime les espaces en début et fin de chaîne avant validation</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Un modèle par usage.</strong> Utiliser un seul modèle pour la création, la modification et la lecture conduit à des compromis fragiles : un client pourrait envoyer un <code>id</code>, ou on devrait rendre facultatifs des champs obligatoires à la création.</p>
+<p><img alt="Modèles Pydantic de l'API Catalogue" src="../contenus/modeles-pydantic.svg" /></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Modèle</th>
+<th>Usage</th>
+<th>Particularités</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FormationCreate</code></td>
+<td>corps du <code>POST</code></td>
+<td>tous les champs obligatoires, aucun <code>id</code></td>
+</tr>
+<tr>
+<td><code>FormationUpdate</code></td>
+<td>corps du <code>PATCH</code></td>
+<td>tous les champs facultatifs, <code>code</code> interdit (<code>extra="forbid"</code>)</td>
+</tr>
+<tr>
+<td><code>FormationSchema</code></td>
+<td>réponse</td>
+<td>ajoute <code>id</code>, <code>created_at</code>, <code>updated_at</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Modification partielle avec <code>exclude_unset</code>.</strong> Pour un <code>PATCH</code>, il faut distinguer « champ absent » (ne pas toucher) de « champ envoyé avec <code>null</code> » (effacer la valeur). Pydantic mémorise les champs réellement reçus :</p>
+<div class="code-block"><pre><code class="language-python">updates = data.model_dump(exclude_unset=True)
+# {&quot;title&quot;: &quot;Nouveau titre&quot;}           si seul le titre a été envoyé
+# {&quot;description&quot;: None}                si description a été envoyée avec null
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><code>model_dump(exclude_unset=True)</code> ne renvoie que les champs présents dans la requête. Mettre à jour un objet avec ce dictionnaire donne exactement la sémantique du JSON Merge Patch vue le jour 1.</p>
+<p><strong>Validateurs métier.</strong> Quand une contrainte dépasse les bornes simples, on écrit une méthode de validation :</p>
+<div class="code-block"><pre><code class="language-python">from datetime import date
+from pydantic import field_validator, model_validator
+
+class FormationEditValidatorsMixin(BaseSchema):
+    &quot;&quot;&quot;
+    Mixin contenant les validateurs pour les champs des formations.
+
+    à attacher aux schémas de création et de mise à jour des formations.
+
+    ATTENTION pour un validateur de champs: ajouter check_fields=False 
+    si le champ n'est pas encore présent dans l'instance du schéma ici BaseSchema.
+    &quot;&quot;&quot;
+    @field_validator(&quot;duration&quot;, check_fields=False)
+    @classmethod
+    def odd_duration(cls, value: int):
+        &quot;&quot;&quot;
+        un validateur de champs est évalué avec son schéma
+
+        peut transformer la valeur du champs en paramètre et la retourner: formatter
+
+        peut bloquer la validation pour des considérations avancées, métier
+
+        mode par défaut: &quot;before&quot; (avant la création de l'instance) donc méthode de classe avec @classmethod
+        &quot;&quot;&quot;
+        if not value % 2:
+            raise ValueError(f&quot;{value} doit être impair !!&quot;)
+        return value
+
+    @model_validator(mode=&quot;after&quot;)
+    def level_matching_duration(self):
+        &quot;&quot;&quot;
+        un validateur sur plusieurs champs, qui nécessite l'instance du schéma
+
+        after: ce validateur est exécuté après la création de l'instance du schéma
+        &quot;&quot;&quot;
+        matches = {
+            &quot;initiation&quot;: 3,
+            &quot;intermédiaire&quot;: 3,
+            &quot;avancé&quot;: 5
+        }
+        if self.duration &lt; matches[self.level]:
+            raise ValueError(f&quot;une formation de niveau {self.level} demande au moins {matches[self.level]} j&quot;)
+        return self
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-python">@router.get(&quot;/{formation_id}&quot;, response_model=FormationResponse)
+def lire_formation(formation_id: uuid.UUID): ...
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Avec une annotation de retour (<code>-&gt; FormationResponse</code>), FastAPI déduit le même comportement. Les deux écritures sont équivalentes pour les cas simples ; <code>response_model=</code> reste utile quand la fonction renvoie un objet plus riche que ce qu'on veut exposer.</p>
+<h3>🛠️ Micro-atelier 7 — Modéliser et voir la validation à l'œuvre (15 min)</h3>
+<ol>
+<li>Créer <code>app/schemas/formations.py</code> avec <code>Level</code>, <code>FormationSchema</code>, <code>FormationCreate</code> et <code>Formation</code> (sections 4.5 et B5).</li>
+<li>Dans un shell Python, construire <code>FormationCreate(...)</code> avec des données valides, puis avec <code>duration=99</code> ; lire le message d'erreur Pydantic.</li>
+<li>
+<p>Ajouter à <code>main.py</code> une route temporaire :</p>
+</li>
+<li>
+<p>Depuis <code>/docs</code>, envoyer un corps valide, puis un corps avec <code>level</code> invalide et un champ manquant ; comparer les réponses <code>200</code> et <code>422</code>.</p>
+</li>
+</ol>
+<p><strong>Résultat attendu</strong> : la réponse <code>422</code> contient une liste <code>detail</code> avec, pour chaque erreur, un type (<code>missing</code>, <code>enum</code>, <code>less_than_equal</code>…), la localisation (<code>loc</code>) et un message. La section suivante transforme ce format par défaut en Problem Details.</p>
+<h3>4.6 Validation et gestion des erreurs</h3>
+<p><img alt="Cycle de vie d'une requête dans FastAPI" src="../contenus/cycle-requete-fastapi.svg" /></p>
+<p>Toutes les erreurs de l'API passent par la même porte de sortie : les <strong>gestionnaires d'exceptions</strong>. C'est ce qui permet d'offrir au consommateur un format unique, quelle que soit l'origine de l'erreur (route inconnue, authentification, validation, règle métier).</p>
+<p><strong>Le format d'erreur par défaut de FastAPI.</strong> Pour un corps invalide, FastAPI répond <code>422</code> avec une liste <code>detail</code> (extrait) :</p>
+<div class="code-block"><pre><code class="language-json">{
+  &quot;detail&quot;: [
+    {
+      &quot;type&quot;: &quot;less_than_equal&quot;,
+      &quot;loc&quot;: [&quot;body&quot;, &quot;duration&quot;],
+      &quot;msg&quot;: &quot;Input should be less than or equal to 10&quot;,
+      &quot;input&quot;: 99
+    }
+  ]
+}
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Chaque erreur indique son <strong>type</strong>, sa <strong>localisation</strong> (<code>loc</code> : d'où vient le paramètre, puis son nom) et un <strong>message</strong>. Ce format est précis, mais il diffère du Problem Details que les consommateurs ont rencontré chez GoRest, et il varie selon l'erreur : une <code>404</code> produit <code>{"detail": "Not Found"}</code>, une erreur de validation un tableau. Un client doit alors gérer plusieurs formes.</p>
+<p><strong>Objectif : un seul format, Problem Details (RFC 9457).</strong></p>
+<div class="code-block"><pre><code class="language-json">{
+  &quot;type&quot;: &quot;https://api-catalogue.example/errors#validation_failed&quot;,
+  &quot;title&quot;: &quot;Unprocessable Entity&quot;,
+  &quot;status&quot;: 422,
+  &quot;code&quot;: &quot;validation_failed&quot;,
+  &quot;detail&quot;: &quot;Certains champs ne sont pas valides.&quot;,
+  &quot;instance&quot;: &quot;/v1/formations&quot;,
+  &quot;request_id&quot;: &quot;6f7c2f2e-…&quot;,
+  &quot;errors&quot;: [
+    { &quot;pointer&quot;: &quot;/duration&quot;, &quot;code&quot;: &quot;less_than_equal&quot;, &quot;detail&quot;: &quot;Input should be less than or equal to 10&quot; }
+  ]
+}
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>C'est exactement la forme que <code>gorest_client.ApiError</code> sait lire (<code>code</code>, <code>errors</code>, <code>request_id</code>), ce qui évite de modifier le client.</p>
+<p><strong>Étape 1 — une exception métier.</strong></p>
+<div class="code-block"><pre><code class="language-python">class ApiError(Exception):
+    def __init__(self, status: int, code: str, detail: str,
+                 errors: list[dict] | None = None,
+                 headers: dict[str, str] | None = None) -&gt; None:
+        super().__init__(detail)
+        self.status = status
+        self.code = code
+        self.detail = detail
+        self.errors = errors
+        self.headers = headers
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Le code métier lève <code>ApiError(404, "not_found", "Formation introuvable.")</code> sans connaître HTTP : seul le gestionnaire se préoccupe du format de la réponse.</p>
+<p><strong>Étape 2 — construire une réponse Problem Details.</strong></p>
+<div class="code-block"><pre><code class="language-python">import uuid
+from http import HTTPStatus
+
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+
+def problem(request: Request, status: int, code: str, detail: str,
+             errors: list[dict] | None = None,
+             headers: dict[str, str] | None = None) -&gt; JSONResponse:
+    corps = {
+        &quot;type&quot;: f&quot;https://api-catalogue.example/errors#{code}&quot;,
+        &quot;title&quot;: HTTPStatus(status).phrase,
+        &quot;status&quot;: status,
+        &quot;code&quot;: code,
+        &quot;detail&quot;: detail,
+        &quot;instance&quot;: request.url.path,
+        &quot;request_id&quot;: str(uuid.uuid4()),
+    }
+    if errors:
+        corps[&quot;errors&quot;] = errors
+    return JSONResponse(corps, status_code=status, headers=headers,
+                        media_type=&quot;application/problem+json&quot;)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Étape 3 — enregistrer les gestionnaires.</strong> Quatre sources d'erreur, quatre gestionnaires :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Gestionnaire pour…</th>
+<th>Statut produit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>règle métier</td>
+<td><code>ApiError</code></td>
+<td>celui de l'exception</td>
+</tr>
+<tr>
+<td>framework (route inconnue, méthode non autorisée)</td>
+<td><code>StarletteHTTPException</code></td>
+<td><code>404</code>, <code>405</code>…</td>
+</tr>
+<tr>
+<td>validation Pydantic</td>
+<td><code>RequestValidationError</code></td>
+<td><code>422</code></td>
+</tr>
+<tr>
+<td>bug imprévu</td>
+<td><code>Exception</code></td>
+<td><code>500</code>, sans détail technique</td>
+</tr>
+</tbody>
+</table></div>
+<div class="code-block"><pre><code class="language-python">from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+
+def pointer(loc: tuple) -&gt; str:
+    return &quot;/&quot; + &quot;/&quot;.join(str(chunks) for chunks in loc[1:])   # loc[0] : body, query ou path
+
+
+def installer_gestionnaires(app: FastAPI) -&gt; None:
+    &quot;&quot;&quot;
+    Un gestionnaire d'exceptions capture et redéfinit les erreurs ciblées déclenchées par l'application.
+
+    ApiError: erreur métier dans un gestionnaire de route (code métier)
+    StarletteHTTPException: sous-jacente à l'exception HTTPException de FastAPI, erreur HTTP standard (404, 403, etc.)
+    RequestValidationError: erreur de validation des paramètres de la requête 422 pydantic
+    Exception: toute autre erreur non gérée
+    &quot;&quot;&quot;
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request: Request, exc: RequestValidationError) -&gt; JSONResponse:
+        errors = [{&quot;pointer&quot;: pointer(e[&quot;loc&quot;]), &quot;code&quot;: e[&quot;type&quot;], &quot;detail&quot;: e[&quot;msg&quot;]}
+                   for e in exc.errors()]
+        return problem(request, 422, &quot;validation_failed&quot;,
+                        &quot;Certains champs ne sont pas valides.&quot;, errors)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="callout warn"><div class="callout-title">Ne pas renvoyer <code>exc.errors()</code> tel quel</div><p>Pour certaines erreurs (validateurs écrits par le développeur), la liste contient des objets Python (<code>ctx.error</code> : l'exception d'origine) qui <strong>ne se sérialisent pas en JSON</strong> : la réponse d'erreur provoquerait elle-même une erreur <code>500</code>. On construit explicitement un dictionnaire avec trois chaînes (<code>pointer</code>, <code>code</code>, <code>detail</code>).</p></div>
+<p>Le gestionnaire pour <code>Exception</code> joue un rôle de filet de sécurité : il journalise la trace complète <strong>côté serveur</strong> et ne renvoie au client qu'un <code>500</code> et un <code>request_id</code>.</p>
+<p><strong>Que doit contenir un message d'erreur ?</strong> Assez pour que le consommateur corrige sa requête, jamais assez pour aider un attaquant :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Cas</th>
+<th>Message conseillé</th>
+<th>Message à proscrire</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Identifiant ou mot de passe faux</td>
+<td>« Identifiant ou mot de passe incorrect. » (le même dans les deux cas)</td>
+<td>« Mot de passe incorrect pour l'utilisateur admin. »</td>
+</tr>
+<tr>
+<td>Champ invalide</td>
+<td>pointeur du champ et règle violée</td>
+<td>valeur complète du champ sensible</td>
+</tr>
+<tr>
+<td>Bug imprévu</td>
+<td>« Erreur interne » et <code>request_id</code></td>
+<td>trace Python, requête SQL, chemin de fichier</td>
+</tr>
+</tbody>
+</table></div>
+<h3>🛠️ Micro-atelier 8 — Un format d'erreur unique (10 min)</h3>
+<ol>
+<li>Créer <code>app/errors.py</code> avec <code>ApiError</code>, <code>probleme</code>, <code>pointeur</code> et <code>installer_gestionnaires</code> (version complète en B5).</li>
+<li>Appeler <code>installer_gestionnaires(app)</code> dans <code>main.py</code>.</li>
+<li>Pour chacune : relever le statut, l'en-tête <code>Content-Type</code> (<code>application/problem+json</code>), le champ <code>code</code>.</li>
+<li>Les afficher avec <code>gorest_client</code> en pointant vers <code>http://127.0.0.1:8000/v1</code> : l'exception est-elle correctement typée ? <em>(Remarque : le client monte ses reprises sur <code>https://</code> uniquement ; voir l'atelier.)</em></li>
+</ol>
+<h3>4.7 Les dépendances : factoriser ce qui précède la route</h3>
+<p>Une <strong>dépendance</strong> est une fonction que FastAPI exécute <strong>avant</strong> la fonction de route, et dont il injecte le résultat. C'est le mécanisme central pour tout ce qui est transversal : authentification, accès au stockage, paramètres de pagination, configuration.</p>
+<p>Ce que cela apporte :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Bénéfice</th>
+<th>Explication</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Réutilisation</strong></td>
+<td>une dépendance s'écrit une fois et s'emploie dans chaque route</td>
+</tr>
+<tr>
+<td><strong>Testabilité</strong></td>
+<td>un test remplace la dépendance : <code>app.dependency_overrides[obtenir_stockage] = lambda: dep()</code></td>
+</tr>
+<tr>
+<td><strong>Documentation</strong></td>
+<td>une dépendance de sécurité apparaît dans OpenAPI (bouton <strong>Authorize</strong> de Swagger UI)</td>
+</tr>
+<tr>
+<td><strong>Composition</strong></td>
+<td>une dépendance peut en utiliser d'autres (le vérificateur de jeton dépend des paramètres de configuration)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Une dépendance peut aussi s'appliquer sans que la route n'en utilise le résultat, avec <code>dependencies=[Depends(...)]</code> sur la route ou sur tout un routeur : c'est la forme retenue pour « cette opération exige un jeton valide ».</p>
+<h3>4.8 Authentification BASIC</h3>
+<p><strong>Principe</strong> (rappel du jour 1) : le client envoie <code>Authorization: Basic base64(identifiant:mot_de_passe)</code>. Le serveur compare, et répond <code>401</code> avec <code>WWW-Authenticate: Basic</code> en cas d'échec.</p>
+<div class="code-block"><pre><code class="language-python">from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from typing import Annotated
+from fastapi import Depends, HTTPException
+import secrets
+
+schema_basic = HTTPBasic(auto_error=False)
+
+
+def authenticate(
+        # --------------&gt; schéma pydantic pour certifier que on a username et passowrd dedans
+        # ---------------------------------------------------&gt; classe fastapi qui gère (décodage..) la str base64 encodée du entête Authorization: Basic erjfekrfbre==
+        # -------------------------------------------&gt; injection dépendance contrôlée par FASTAPI (
+        #                                                             place la gestion de dépendance dans le cycle de vie d'une requête
+        #                                                             exécute et valide la dépendance
+        #                                                             fonctionne en synchrone et en asychrone
+        creds: Annotated[HTTPBasicCredentials | None, Depends(schema_basic)]
+):
+    if creds is None or not (
+        secrets.compare_digest(creds.username.encode(&quot;utf-8&quot;), b&quot;bob&quot;) and 
+        secrets.compare_digest(creds.password.encode(&quot;utf-8&quot;), b&quot;roottoor&quot;)
+    ):
+        raise HTTPException(
+            status_code=401, 
+            detail=&quot;invalid_credentials: Identifiant ou mot de passe incorrect.&quot;,
+            headers={&quot;WWW-Authenticate&quot;: 'Basic realm=&quot;generic&quot;'}
+        )
+    return creds.username
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Trois points de sécurité à retenir.</strong></p>
+<ul>
+<li><strong><code>secrets.compare_digest</code></strong> compare en un temps qui ne dépend pas de la position du premier caractère différent. Avec <code>==</code>, un attaquant qui mesure finement les temps de réponse peut deviner un secret caractère par caractère (<strong>attaque par canal temporel</strong>). La fonction travaille sur des octets : on encode donc en UTF-8 d'abord, ce qui autorise les caractères accentués.</li>
+<li><strong>Même message</strong> pour un identifiant inconnu et pour un mot de passe erroné : ne pas indiquer à un attaquant quel identifiant existe.</li>
+<li><strong><code>auto_error=False</code></strong> : par défaut, le schéma lève lui-même l'erreur dans son propre format. Avec <code>False</code>, la dépendance reçoit <code>None</code> et c'est notre code qui répond, dans le format Problem Details.</li>
+</ul>
+<div class="callout warn"><div class="callout-title">Où vivent les secrets ?</div><p>Dans l'atelier, l'identifiant et le mot de passe d'administration sont lus dans des variables d'environnement (<code>.env</code>), conformément à la règle du jour 1. En production, un mot de passe ne se stocke jamais en clair : on conserve son <strong>empreinte</strong> (algorithmes <code>argon2</code> ou <code>bcrypt</code>) et on compare l'empreinte. BASIC n'est acceptable que sur <strong>HTTPS</strong> et pour des usages simples (outils internes, administration).</p></div>
+<h3>4.9 Authentification Bearer, jetons et portées</h3>
+<p><strong>Principe</strong> : le client envoie <code>Authorization: Bearer &lt;jeton&gt;</code>. Le serveur retrouve le jeton, en déduit une <strong>identité</strong> et des <strong>droits</strong> (portées, en anglais <em>scopes</em>).</p>
+<p><img alt="Chaîne de vérification BASIC et Bearer côté serveur" src="../contenus/chaine-securite.svg" /></p>
+<p>Pour l'API Catalogue, deux jetons existent (configurés dans <code>.env</code>) :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Jeton</th>
+<th>Portées</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CATALOGUE_TOKEN_ECRITURE</code></td>
+<td><code>catalogue:write</code></td>
+<td>scripts qui alimentent le catalogue</td>
+</tr>
+<tr>
+<td><code>CATALOGUE_TOKEN_LECTURE</code></td>
+<td><code>catalogue:read</code></td>
+<td>consommateurs en lecture seule (utile pour démontrer le <code>403</code>)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Les lectures (<code>GET</code>) restent publiques ; les écritures exigent la portée <code>catalogue:write</code>.</p>
+<div class="code-block"><pre><code class="language-python">from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+schema_bearer = HTTPBearer(auto_error=False, description=&quot;Jeton d'API de l'API Catalogue&quot;)
+
+
+def authenticate_basic(
+    creds: Annotated[HTTPBasicCredentials | None, Depends(schema_basic)]
+):
+    if creds is None or not (
+        secrets.compare_digest(creds.username.encode(&quot;utf-8&quot;), b&quot;bob&quot;) and 
+        secrets.compare_digest(creds.password.encode(&quot;utf-8&quot;), b&quot;roottoor&quot;)
+    ):
+        raise HTTPException(
+            status_code=401, 
+            detail=&quot;invalid_credentials: Identifiant ou mot de passe incorrect.&quot;,
+            headers={&quot;WWW-Authenticate&quot;: 'Basic realm=&quot;generic&quot;'}
+        )
+    return creds.username
+
+def authenticate_bearer(acl: str):
+    def verifier(
+        creds: Annotated[HTTPAuthorizationCredentials | None, Depends(schema_bearer)]
+    ) -&gt; frozenset[str]:
+        if creds is None:
+            raise ApiError(401, &quot;missing_token&quot;, &quot;Jeton absent.&quot;,
+                            headers={&quot;WWW-Authenticate&quot;: &quot;Bearer&quot;})
+        acls = next((s for jeton, s in jetons.items()
+                        if egal(creds.credentials, jeton)), None)
+        if acls is None:
+            raise ApiError(401, &quot;invalid_token&quot;, &quot;Jeton invalide.&quot;,
+                            headers={&quot;WWW-Authenticate&quot;: 'Bearer error=&quot;invalid_token&quot;'})
+        if acl not in acls:
+            raise ApiError(403, &quot;insufficient_scope&quot;, f&quot;Le droit {acl} est requis.&quot;,
+                            headers={&quot;WWW-Authenticate&quot;: 'Bearer error=&quot;insufficient_scope&quot;'})
+        return acls
+    return verifier
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>L'utilisation sur une route est une seule ligne :</p>
+<div class="code-block"><pre><code class="language-python">@router.post(&quot;&quot;, status_code=201, dependencies=[Depends(authenticate_bearer(&quot;catalogue:write&quot;))])
+def creer_formation(data: FormationCreate, ...): ...
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Pourquoi <code>auto_error=False</code> ici aussi ?</strong> Le comportement par défaut de <code>HTTPBearer</code> face à un en-tête absent a varié selon les versions de FastAPI (<code>403</code> à une époque, <code>401</code> ensuite). En reprenant la main, on garantit un contrat stable : absent ou invalide donne <code>401</code>, valide mais sans droit donne <code>403</code>, ce que la RFC 6750 exprime avec <code>WWW-Authenticate: Bearer error="insufficient_scope"</code>.</p>
+<p><strong>Dans Swagger UI</strong>, le schéma <code>HTTPBearer</code> ajoute un bouton <strong>Authorize</strong> : on y colle le jeton une fois, et toutes les requêtes « Try it out » le transmettent.</p>
+<p><strong>Aller plus loin en production.</strong> Un dictionnaire de jetons statiques suffit pour un atelier. Une API réelle ajoute :</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Besoin</th>
+<th>Solution courante</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Jetons à durée limitée, identité de l'utilisateur dans le jeton</td>
+<td><strong>JWT</strong> signés (bibliothèque dédiée) émis après une authentification</td>
+</tr>
+<tr>
+<td>Délégation (« se connecter avec… »)</td>
+<td><strong>OAuth 2.0</strong> avec un serveur d'autorisation ; FastAPI fournit <code>OAuth2PasswordBearer</code> et la gestion des portées</td>
+</tr>
+<tr>
+<td>Révocation et rotation</td>
+<td>table de jetons en base, avec date d'expiration et date de dernière utilisation</td>
+</tr>
+<tr>
+<td>Limitation d'usage</td>
+<td>quotas par jeton (<code>429</code> avec <code>Retry-After</code>), souvent portés par une passerelle</td>
+</tr>
+<tr>
+<td>Protection du transport</td>
+<td>HTTPS imposé par le serveur frontal ou la passerelle</td>
+</tr>
+</tbody>
+</table></div>
+<h3>🛠️ Micro-atelier 9 — Protéger une route et la tester à la main (10 min)</h3>
+<ol>
+<li>Générer deux jetons aléatoires et un mot de passe, puis les ranger dans <code>.env</code> :</li>
+</ol>
+<div class="code-block"><pre><code class="language-bash">python -c &quot;import secrets; print(secrets.token_urlsafe(32))&quot;
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-bash"># .env (ajouts du jour 2)
+CATALOGUE_TOKEN_ECRITURE=&lt;jeton généré 1&gt;
+CATALOGUE_TOKEN_LECTURE=&lt;jeton généré 2&gt;
+CATALOGUE_ADMIN_USER=admin
+CATALOGUE_ADMIN_PASSWORD=&lt;mot de passe généré&gt;
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<ol>
+<li>Ajouter une route <code>GET /v1/admin/statistiques</code> protégée par <code>authenticate_basic</code> et une route <code>POST /v1/catalogue</code> protégée par <code>authenticate_bearer("catalogue:write")</code>.</li>
+<li>Appeler chaque route : sans identifiants, avec un mauvais jeton, avec le jeton de lecture, avec le jeton d'écriture.</li>
+<li>Remplir un tableau « appel → statut → <code>WWW-Authenticate</code> » et le comparer au tableau ci-dessous.</li>
+</ol>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Appel</th>
+<th>Statut attendu</th>
+<th><code>WWW-Authenticate</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /v1/essai</code> sans en-tête</td>
+<td><code>401</code></td>
+<td><code>Bearer</code></td>
+</tr>
+<tr>
+<td>avec un jeton inconnu</td>
+<td><code>401</code></td>
+<td><code>Bearer error="invalid_token"</code></td>
+</tr>
+<tr>
+<td>avec le jeton de lecture</td>
+<td><code>403</code></td>
+<td><code>Bearer error="insufficient_scope"</code></td>
+</tr>
+<tr>
+<td>avec le jeton d'écriture</td>
+<td><code>200</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>GET /v1/admin/statistiques</code> sans identifiants</td>
+<td><code>401</code></td>
+<td><code>Basic realm="admin"</code></td>
+</tr>
+<tr>
+<td>avec <code>curl.exe -u admin:&lt;mot de passe&gt;</code></td>
+<td><code>200</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<h3>4.10 Documenter l'API : le contrat OpenAPI soigné</h3>
+<p>La documentation générée est correcte par défaut. Quelques options la rendent <strong>utile</strong> aux consommateurs :</p>
+<div class="code-block"><pre><code class="language-python">app = FastAPI(
+    title=&quot;API Catalogue&quot;,
+    version=&quot;1.0.0&quot;,
+    description=&quot;Catalogue de formations. Les lectures sont publiques ; &quot;
+                &quot;les écritures exigent un jeton Bearer portant `catalogue:write`.&quot;,
+    openapi_tags=[
+        {&quot;name&quot;: &quot;formations&quot;, &quot;description&quot;: &quot;Fiches du catalogue.&quot;},
+        {&quot;name&quot;: &quot;interventions&quot;, &quot;description&quot;: &quot;Dates de réalisation d'une formation.&quot;},
+        {&quot;name&quot;: &quot;administration&quot;, &quot;description&quot;: &quot;Statistiques (BASIC).&quot;},
+    ],
+)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Élément</th>
+<th>Où le renseigner</th>
+<th>Effet dans <code>/docs</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Titre, version, description</td>
+<td><code>FastAPI(...)</code></td>
+<td>en-tête de la page</td>
+</tr>
+<tr>
+<td>Descriptions de groupes</td>
+<td><code>openapi_tags</code></td>
+<td>texte sous chaque groupe de routes</td>
+</tr>
+<tr>
+<td>Résumé d'une route</td>
+<td><code>summary=</code> et docstring</td>
+<td>titre et description de l'opération</td>
+</tr>
+<tr>
+<td>Codes d'erreur</td>
+<td><code>responses={404: {...}}</code></td>
+<td>tableau des réponses possibles</td>
+</tr>
+<tr>
+<td>Exemples de données</td>
+<td><code>Field(examples=[...])</code></td>
+<td>valeurs pré-remplies pour « Try it out »</td>
+</tr>
+<tr>
+<td>Schéma de sécurité</td>
+<td><code>HTTPBearer(description=...)</code></td>
+<td>bouton <strong>Authorize</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Le contrat comme livrable.</strong> Le fichier <code>openapi.json</code> est l'engagement pris envers les consommateurs. Bonne pratique : l'exporter et le <strong>versionner</strong> dans Git, pour que toute modification du contrat apparaisse dans une revue de code.</p>
+<div class="code-block"><pre><code class="language-bash">curl.exe -s http://127.0.0.1:8000/openapi.json -o openapi.json
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Ce fichier alimente Postman ou Bruno (import d'une collection complète), les générateurs de clients dans d'autres langages, et les tests de conformité du jour 3 (même contrat, autre implémentation).</p>
+<h3>4.11 Tester l'API</h3>
+<p>FastAPI fournit un <code>TestClient</code> : il appelle l'application <strong>en mémoire</strong>, sans serveur ni réseau, avec l'interface de <code>httpx</code>.</p>
+<div class="code-block"><pre><code class="language-python">from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
+
+def test_health():
+    r = client.get(&quot;/v1/health&quot;)
+    assert r.status_code == 200
+    assert r.json() == {&quot;statut&quot;: &quot;ok&quot;}
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-bash">python -m pytest -q
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>Deux mécanismes rendent les tests fiables :</p>
+<ul>
+<li><strong><code>app.dependency_overrides</code></strong> : remplacer le stockage par une instance neuve pour chaque test, afin que les tests ne s'influencent pas ;</li>
+<li><strong><code>monkeypatch.setenv</code></strong> : fixer des jetons et un mot de passe de test, sans toucher au <code>.env</code> réel.</li>
+</ul>
+<div class="code-block"><pre><code class="language-python">@pytest.fixture()
+def client():
+    depot = Stockage()
+    app.dependency_overrides[obtenir_stockage] = lambda: depot
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="callout tip"><div class="callout-title">Deux levelx de test complémentaires</div><p>Les tests <code>pytest</code> avec <code>TestClient</code> sont rapides et s'exécutent en intégration continue. Le <code>gorest_client</code> du jour 1 exécute un <strong>vrai</strong> appel HTTP contre un serveur lancé : il vérifie ce que <code>TestClient</code> ne voit pas (en-têtes réellement envoyés, reprises, encodage des crochets dans l'URL).</p></div>
+<hr />
+</div>
+
+<div id="tab-b5-bloc-4-atelier-90-min" class="tab-content">
+<h3>🛠️ Atelier 2 — Créer un service web avec FastAPI</h3>
+<p><strong>Contexte.</strong> Le catalogue de formations doit être exposé à d'autres équipes. Les stagiaires livrent la <strong>version 1</strong> de l'API Catalogue, conforme au contrat conçu en B3, puis la vérifient avec le client écrit hier.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Étape</th>
+<th>Contenu</th>
+<th>Durée</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Squelette : package <code>app</code>, route de santé, variables d'environnement</td>
+<td>10 min</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Modèles Pydantic et stockage en mémoire</td>
+<td>15 min</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Routes des formations (liste paginée, lecture, création, modification, suppression)</td>
+<td>25 min</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Erreurs Problem Details et routes des interventions</td>
+<td>10 min</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Sécurité : Bearer sur les écritures, BASIC sur l'administration</td>
+<td>10 min</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Tests <code>pytest</code>, puis scénario avec <code>gorest_client</code></td>
+<td>20 min</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Arborescence cible</strong> (ajoutée au dépôt du jour 1) :</p>
+<div class="code-block"><pre><code>api-catalogue/
+├── .env                          # + variables CATALOGUE_* (jour 2)
+├── pyproject.toml
+├── requirements.txt
+├── gorest_client/             # jour 1 (une ligne modifiée à l'étape 6)
+├── app/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── schemas/
+│   |   ├── __init__.py
+│   |   └── formations.py
+│   ├── errors.py
+│   ├── pagination.py
+│   ├── stockage.py
+│   ├── dependances.py
+│   ├── auth.py
+│   └── routers/
+│       ├── __init__.py
+│       ├── formations.py
+│       ├── interventions.py
+│       └── admin.py
+├── tests/
+│   └── test_api.py
+└── verifier_avec_client.py
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="callout tip"><div class="callout-title">Méthode de travail</div><p>Les étapes se suivent : chaque fichier s'appuie sur le précédent. Après chaque étape, vérifier dans <code>/docs</code> que la route attendue apparaît. En cas de blocage de plus de 5 minutes, ouvrir le corrigé de l'étape correspondante.</p></div>
+<h4>Étape 1 — Squelette (10 min)</h4>
+<p>Créer <code>app/__init__.py</code> et <code>app/routers/__init__.py</code> (fichiers vides), <code>pyproject.toml</code> (section 4.2), puis compléter <code>.env</code> avec les valeurs générées au micro-atelier 9.</p>
+<p><strong>Corrigé — <code>app/dependances.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">from typing import Annotated
+
+from fastapi import Depends
+
+from .stockage import Stockage
+
+_stockage = Stockage()
+
+
+def obtenir_stockage() -&gt; Stockage:
+    return _stockage
+
+
+Depot = Annotated[Stockage, Depends(obtenir_stockage)]
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Corrigé — <code>app/errors.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">&quot;&quot;&quot;Erreurs de l'API au format Problem Details (RFC 9457).&quot;&quot;&quot;
+import logging
+import uuid
+from http import HTTPStatus
+
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+journal = logging.getLogger(&quot;api_catalogue&quot;)
+
+
+class ApiError(Exception):
+    def __init__(self, status: int, code: str, detail: str,
+                 errors: list[dict] | None = None,
+                 headers: dict[str, str] | None = None) -&gt; None:
+        super().__init__(detail)
+        self.status = status
+        self.code = code
+        self.detail = detail
+        self.errors = errors
+        self.headers = headers
+
+
+def probleme(request: Request, status: int, code: str, detail: str,
+             errors: list[dict] | None = None,
+             headers: dict[str, str] | None = None) -&gt; JSONResponse:
+    corps = {
+        &quot;type&quot;: f&quot;https://api-catalogue.example/errors#{code}&quot;,
+        &quot;title&quot;: HTTPStatus(status).phrase,
+        &quot;status&quot;: status,
+        &quot;code&quot;: code,
+        &quot;detail&quot;: detail,
+        &quot;instance&quot;: request.url.path,
+        &quot;request_id&quot;: str(uuid.uuid4()),
+    }
+    if errors:
+        corps[&quot;errors&quot;] = errors
+    return JSONResponse(corps, status_code=status, headers=headers,
+                        media_type=&quot;application/problem+json&quot;)
+
+
+def pointeur(loc: tuple) -&gt; str:
+    return &quot;/&quot; + &quot;/&quot;.join(str(morceau) for morceau in loc[1:])   # loc[0] : body, query ou path
+
+
+def installer_gestionnaires(app: FastAPI) -&gt; None:
+    @app.exception_handler(ApiError)
+    async def erreur_api(request: Request, exc: ApiError) -&gt; JSONResponse:
+        return probleme(request, exc.status, exc.code, exc.detail, exc.errors, exc.headers)
+
+    @app.exception_handler(StarletteHTTPException)
+    async def erreur_http(request: Request, exc: StarletteHTTPException) -&gt; JSONResponse:
+        return probleme(request, exc.status_code, &quot;http_error&quot;, str(exc.detail),
+                        headers=exc.headers)
+
+    @app.exception_handler(RequestValidationError)
+    async def erreur_validation(request: Request, exc: RequestValidationError) -&gt; JSONResponse:
+        errors = [{&quot;pointer&quot;: pointeur(e[&quot;loc&quot;]), &quot;code&quot;: e[&quot;type&quot;], &quot;detail&quot;: e[&quot;msg&quot;]}
+                   for e in exc.errors()]
+        return probleme(request, 422, &quot;validation_failed&quot;,
+                        &quot;Certains champs ne sont pas valides.&quot;, errors)
+
+    @app.exception_handler(Exception)
+    async def erreur_inattendue(request: Request, exc: Exception) -&gt; JSONResponse:
+        journal.exception(&quot;Erreur non gérée sur %s&quot;, request.url.path)
+        return probleme(request, 500, &quot;internal_error&quot;, &quot;Erreur interne du serveur.&quot;)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Corrigé — <code>app/main.py</code></strong> (version complète, reprise à l'étape 4)</p>
+<div class="code-block"><pre><code class="language-python">from dotenv import load_dotenv
+from fastapi import APIRouter, FastAPI
+
+from .errors import installer_gestionnaires
+from .routers import admin, formations, interventions
+
+load_dotenv()
+
+app = FastAPI(
+    title=&quot;API Catalogue&quot;,
+    version=&quot;1.0.0&quot;,
+    description=&quot;Catalogue de formations. Les lectures sont publiques ; &quot;
+                &quot;les écritures exigent un jeton Bearer portant `catalogue:write`.&quot;,
+    openapi_tags=[
+        {&quot;name&quot;: &quot;formations&quot;, &quot;description&quot;: &quot;Fiches du catalogue.&quot;},
+        {&quot;name&quot;: &quot;interventions&quot;, &quot;description&quot;: &quot;Dates de réalisation d'une formation.&quot;},
+        {&quot;name&quot;: &quot;administration&quot;, &quot;description&quot;: &quot;Statistiques (authentification BASIC).&quot;},
+        {&quot;name&quot;: &quot;technique&quot;, &quot;description&quot;: &quot;Supervision.&quot;},
+    ],
+)
+installer_gestionnaires(app)
+
+version = APIRouter(prefix=&quot;/v1&quot;)
+version.include_router(formations.router)
+version.include_router(interventions.router)
+version.include_router(admin.router)
+
+
+@version.get(&quot;/health&quot;, tags=[&quot;technique&quot;], summary=&quot;État du service&quot;)
+def health() -&gt; dict[str, str]:
+    return {&quot;statut&quot;: &quot;ok&quot;}
+
+
+app.include_router(version)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Point de contrôle</strong> : <code>fastapi dev</code> démarre sans erreur, une fois toutes les étapes terminées ; d'ici là, commenter temporairement les importations des modules pas encore écrits.</p>
+<h4>Étape 2 — Modèles et stockage (15 min)</h4>
+<p><strong>Corrigé — <code>app/schemas/formations.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">import uuid
+from datetime import date, datetime
+from enum import Enum
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+class Level(str, Enum):
+    beginner = &quot;initiation&quot;
+    medium = &quot;intermédiaire&quot;
+    advanced = &quot;avancé&quot;
+
+
+class StatutIntervention(str, Enum):
+    planned = &quot;planifiée&quot;
+    confirmed = &quot;confirmée&quot;
+    cancelled = &quot;annulée&quot;
+
+
+class FormationSchema(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    code: str = Field(pattern=r&quot;^[A-Z]{3}\d{6}-[A-Z]$&quot;, examples=[&quot;PYT100614-F&quot;])
+    title: str = Field(min_length=3, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    duration: int = Field(ge=1, le=10)
+    level: Level
+
+
+class FormationCreate(FormationSchema):
+    pass
+
+
+class FormationUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra=&quot;forbid&quot;)
+
+    title: str | None = Field(default=None, min_length=3, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    duration: int | None = Field(default=None, ge=1, le=10)
+    level: Level | None = None
+
+
+class FormationResponse(FormationSchema):
+    id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+### pagination avec cursor
+class Meta(BaseModel):
+    has_more: bool
+    next_cursor: str | None = None
+    total: int | None = None
+
+
+class PageFormations(BaseModel):
+    data: list[FormationSchema]
+    meta: Meta
+
+
+class PageInterventions(BaseModel):
+    data: list[InterventionFormation]
+    meta: Meta
+
+
+class Statistiques(BaseModel):
+    formations: int
+    interventions: int
+    demandeur: str
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Corrigé — <code>app/stockage.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+from .errors import ApiError
+from .schemas import (FormationSchema, FormationCreate, Level, InterventionCreate,
+                      InterventionFormation)
+
+
+class Stockage:
+    &quot;&quot;&quot;Stockage en mémoire ; remplacé par l'ORM Django le jour 3.&quot;&quot;&quot;
+
+    def __init__(self) -&gt; None:
+        self.formations: dict[uuid.UUID, FormationSchema] = {}
+        self.interventions: dict[uuid.UUID, InterventionFormation] = {}
+
+    # --- formations ------------------------------------------------------
+    def lister_formations(self, level: Level | None,
+                          sort: str) -&gt; list[FormationSchema]:
+        elements = list(self.formations.values())
+        if level:
+            elements = [f for f in elements if f.level == level]
+        return sorted(elements, key=lambda f: getattr(f, sort.lstrip(&quot;-&quot;)),
+                      reverse=sort.startswith(&quot;-&quot;))
+
+    def formation(self, formation_id: uuid.UUID) -&gt; FormationResponse:
+        try:
+            return self.formations[formation_id]
+        except KeyError:
+            raise ApiError(404, &quot;not_found&quot;, &quot;Formation introuvable.&quot;) from None
+
+    def creer_formation(self, data: FormationCreate) -&gt; FormationResponse:
+        if any(f.code == data.code for f in self.formations.values()):
+            raise ApiError(409, &quot;code_deja_utilise&quot;, f&quot;Le code {data.code} existe déjà.&quot;)
+        maintenant = datetime.now(timezone.utc)
+        formation = FormationSchema(id=uuid.uuid4(), created_at=maintenant, updated_at=maintenant,
+                              **data.model_dump())
+        self.formations[formation.id] = formation
+        return formation
+
+    def modifier_formation(self, formation_id: uuid.UUID,
+                           updates: dict[str, Any]) -&gt; FormationResponse:
+        actuelle = self.formation(formation_id)
+        modifiee = actuelle.model_copy(
+            update={**updates, &quot;updated_at&quot;: datetime.now(timezone.utc)})
+        self.formations[formation_id] = modifiee
+        return modifiee
+
+    def supprimer_formation(self, formation_id: uuid.UUID) -&gt; None:
+        self.formation(formation_id)
+        del self.formations[formation_id]
+        self.interventions = {k: s for k, s in self.interventions.items()
+                         if s.formation_id != formation_id}
+
+    # --- interventions --------------------------------------------------------
+    def interventions_de(self, formation_id: uuid.UUID) -&gt; list[InterventionFormation]:
+        self.formation(formation_id)
+        return sorted((s for s in self.interventions.values() if s.formation_id == formation_id),
+                      key=lambda s: s.start_date)
+
+    def creer_intervention(self, formation_id: uuid.UUID,
+                      data: InterventionCreate) -&gt; InterventionFormation:
+        self.formation(formation_id)
+        intervention = InterventionFormation(id=uuid.uuid4(), formation_id=formation_id,
+                                   **data.model_dump())
+        self.interventions[intervention.id] = intervention
+        return intervention
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Corrigé — <code>app/pagination.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">import base64
+from typing import Any
+
+from .errors import ApiError
+
+
+def encoder_curseur(decalage: int) -&gt; str:
+    return base64.urlsafe_b64encode(str(decalage).encode()).decode()
+
+
+def decoder_curseur(curseur: str) -&gt; int:
+    try:
+        decalage = int(base64.urlsafe_b64decode(curseur.encode()).decode())
+    except ValueError as exc:      # binascii.Error et UnicodeDecodeError héritent de ValueError
+        raise ApiError(400, &quot;invalid_cursor&quot;, &quot;Curseur de pagination invalide.&quot;) from exc
+    if decalage &lt; 0:
+        raise ApiError(400, &quot;invalid_cursor&quot;, &quot;Curseur de pagination invalide.&quot;)
+    return decalage
+
+
+def paginer(elements: list[Any], size: int, after: str | None,
+            compter: bool) -&gt; dict[str, Any]:
+    debut = decoder_curseur(after) if after else 0
+    fin = debut + size
+    suite = fin &lt; len(elements)
+    return {
+        &quot;data&quot;: elements[debut:fin],
+        &quot;meta&quot;: {
+            &quot;has_more&quot;: suite,
+            &quot;next_cursor&quot;: encoder_curseur(fin) if suite else None,
+            &quot;total&quot;: len(elements) if compter else None,
+        },
+    }
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>La sécurité manque encore : <code>ECRITURE</code> est défini à l'étape 5. Pour avancer, ajouter provisoirement <code>ECRITURE = []</code> en tête de module, puis le remplacer par l'import.</p>
+<p><strong>Point de contrôle</strong> (avec <code>/docs</code>, sans authentification pour l'instant)</p>
+<ul>
+<li>[ ] <code>POST</code> avec le corps <code>{"code": "PYT100614-F", "title": "Python Avancé : Web Services", "duration": 3, "level": "avance"}</code> renvoie <code>201</code> et un en-tête <code>Location</code> ;</li>
+<li>[ ] <code>GET /v1/formations?page[size]=1</code> renvoie une enveloppe <code>data</code> + <code>meta</code> ;</li>
+<li>[ ] un <code>PATCH</code> avec <code>{"code": "AUT100000-X"}</code> renvoie <code>422</code> (champ interdit) ;</li>
+<li>[ ] un <code>DELETE</code> répond <code>204</code> sans corps, un second <code>DELETE</code> répond <code>404</code>.</li>
+</ul>
+<h4>Étape 4 — Interventions et erreurs uniformes (10 min)</h4>
+<p><strong>Corrigé — <code>app/routers/interventions.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, Query, status
+
+from ..dependances import Depot
+from ..pagination import paginer
+from ..schemas import PageInterventions, InterventionCreate, InterventionFormation
+from ..auth import ECRITURE
+
+router = APIRouter(prefix=&quot;/formations/{formation_id}/interventions&quot;, tags=[&quot;interventions&quot;])
+
+
+@router.get(&quot;&quot;, response_model=PageInterventions, summary=&quot;Lister les interventions d'une formation&quot;,
+            responses={404: {&quot;description&quot;: &quot;Formation inconnue&quot;}})
+def lister_interventions(
+    formation_id: uuid.UUID,
+    depot: Depot,
+    size: Annotated[int, Query(alias=&quot;page[size]&quot;, ge=1, le=100)] = 25,
+    after: Annotated[str | None, Query(alias=&quot;page[after]&quot;)] = None,
+    compter: Annotated[bool, Query(alias=&quot;page[count]&quot;)] = False,
+):
+    return paginer(depot.interventions_de(formation_id), size, after, compter)
+
+
+@router.post(&quot;&quot;, response_model=InterventionFormation, status_code=status.HTTP_201_CREATED,
+             dependencies=ECRITURE, summary=&quot;Planifier une intervention&quot;,
+             responses={404: {&quot;description&quot;: &quot;Formation inconnue&quot;}})
+def creer_intervention(formation_id: uuid.UUID, data: InterventionCreate,
+                  depot: Depot) -&gt; InterventionFormation:
+    return depot.creer_intervention(formation_id, data)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p>La version 1 ne propose pas de lecture d'une intervention isolée : la réponse du <code>POST</code> contient la intervention complète, et il n'y a donc pas d'en-tête <code>Location</code>. Ce choix est un engagement de contrat : ajouter la route plus tard est compatible, la retirer ne le serait pas.</p>
+<p><strong>Point de contrôle</strong></p>
+<ul>
+<li>[ ] créer une intervention pour une formation inexistante renvoie <code>404</code> au format Problem Details (<code>code: not_found</code>) ;</li>
+<li>[ ] une date de début passée renvoie <code>422</code> avec <code>errors[0].pointer == "/start_date"</code> ;</li>
+<li>[ ] <code>GET /v1/route-inconnue</code> et <code>DELETE /v1/health</code> renvoient chacun un document <code>application/problem+json</code> (<code>404</code> et <code>405</code>).</li>
+</ul>
+<h4>Étape 5 — Sécurité (10 min)</h4>
+<p><strong>Corrigé — <code>app/auth.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">import secrets
+from collections.abc import Callable
+from typing import Annotated
+
+from fastapi import Depends
+from fastapi.security import (HTTPAuthorizationCredentials, HTTPBasic,
+                              HTTPBasicCredentials, HTTPBearer)
+
+from .errors import ApiError
+
+schema_bearer = HTTPBearer(auto_error=False, description=&quot;Jeton d'API de l'API Catalogue&quot;)
+schema_basic = HTTPBasic(auto_error=False)
+
+
+def authenticate_basic(
+    creds: Annotated[HTTPBasicCredentials | None, Depends(schema_basic)]
+):
+    if creds is None or not (
+        secrets.compare_digest(creds.username.encode(&quot;utf-8&quot;), b&quot;bob&quot;) and 
+        secrets.compare_digest(creds.password.encode(&quot;utf-8&quot;), b&quot;roottoor&quot;)
+    ):
+        raise HTTPException(
+            status_code=401, 
+            detail=&quot;invalid_credentials: Identifiant ou mot de passe incorrect.&quot;,
+            headers={&quot;WWW-Authenticate&quot;: 'Basic realm=&quot;generic&quot;'}
+        )
+    return creds.username
+
+
+def authenticate_bearer(acl: str) -&gt; Callable[..., frozenset[str]]:
+    &quot;&quot;&quot;
+    fermeture en python (fonction imbriquée) pour paramétrer le droit requis à vérifier dans le jeton d'authentification
+    &quot;&quot;&quot;
+    def verifier(
+        creds: Annotated[HTTPAuthorizationCredentials | None, Depends(schema_bearer)]
+    ) -&gt; frozenset[str]:
+        if creds is None:
+            raise ApiError(401, &quot;missing_token&quot;, &quot;Jeton absent.&quot;,
+                            headers={&quot;WWW-Authenticate&quot;: &quot;Bearer&quot;})
+        acl = next((s for jeton, s in jetons.items()
+                        if secrets.compare_digest(creds.credentials, jeton)), None)
+        if acls is None:
+            raise ApiError(401, &quot;invalid_token&quot;, &quot;Jeton invalide.&quot;,
+                            headers={&quot;WWW-Authenticate&quot;: 'Bearer error=&quot;invalid_token&quot;'})
+        if acl not in acls:
+            raise ApiError(403, &quot;insufficient_scope&quot;, f&quot;Le droit {acl} est requis.&quot;,
+                            headers={&quot;WWW-Authenticate&quot;: 'Bearer error=&quot;insufficient_scope&quot;'})
+        return acls
+    return verifier
+
+ECRITURE = [Depends(authenticate_bearer(&quot;catalogue:write&quot;))]
+LECTURE = [Depends(authenticate_bearer(&quot;catalogue:read&quot;))]
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Corrigé — <code>app/routers/admin.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">from typing import Annotated
+
+from fastapi import APIRouter, Depends
+
+from ..dependances import Depot
+from ..schemas import Statistiques
+from ..auth import authenticate_basic
+
+router = APIRouter(prefix=&quot;/admin&quot;, tags=[&quot;administration&quot;])
+
+
+@router.get(&quot;/statistiques&quot;, response_model=Statistiques, summary=&quot;Statistiques du catalogue&quot;)
+def statistiques(demandeur: Annotated[str, Depends(authenticate_basic)], depot: Depot) -&gt; Statistiques:
+    return Statistiques(formations=len(depot.formations), interventions=len(depot.interventions),
+                        demandeur=demandeur)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Point de contrôle</strong></p>
+<ul>
+<li>[ ] sans jeton, <code>POST /v1/formations</code> renvoie <code>401</code> avec <code>WWW-Authenticate: Bearer</code> ;</li>
+<li>[ ] avec le jeton de <strong>lecture</strong>, le même appel renvoie <code>403</code> ;</li>
+<li>[ ] avec le jeton d'<strong>écriture</strong>, il renvoie <code>201</code> ;</li>
+<li>[ ] dans <code>/docs</code>, le bouton <strong>Authorize</strong> apparaît, et un cadenas figure sur les opérations protégées ;</li>
+<li>[ ] <code>curl.exe -u admin:&lt;mot de passe&gt; http://127.0.0.1:8000/v1/admin/statistiques</code> renvoie <code>200</code>.</li>
+</ul>
+<div class="callout warn"><div class="callout-title">Pièges fréquents à cette étape</div><p><code>RuntimeError: variable d'environnement manquante</code> : le fichier <code>.env</code> est absent du dossier où <code>fastapi dev</code> est lancé, ou une variable est mal orthographiée. <code>ModuleNotFoundError</code> au démarrage : un fichier <code>__init__.py</code> manque, ou la commande est lancée depuis un autre dossier que la racine du dépôt. Les modifications du <code>.env</code> ne sont prises en compte qu'après un redémarrage du serveur, car <code>settings()</code> est mis en cache.</p></div>
+<h4>Étape 6 — Tests, puis scénario avec le client du jour 1 (20 min)</h4>
+<p><strong>Corrigé — <code>tests/test_api.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">import pytest
+from fastapi.testclient import TestClient
+
+from app.dependances import obtenir_stockage
+from app.main import app
+from app.auth import settings
+from app.stockage import Stockage
+
+ECRITURE = {&quot;Authorization&quot;: &quot;Bearer jeton-ecriture&quot;}
+LECTURE = {&quot;Authorization&quot;: &quot;Bearer jeton-lecture&quot;}
+FORMATION = {&quot;code&quot;: &quot;PYT100614-F&quot;, &quot;title&quot;: &quot;Python Avancé : Web Services&quot;,
+             &quot;duration&quot;: 3, &quot;level&quot;: &quot;avance&quot;}
+
+
+@pytest.fixture(autouse=True)
+def environnement(monkeypatch):
+    monkeypatch.setenv(&quot;CATALOGUE_TOKEN_ECRITURE&quot;, &quot;jeton-ecriture&quot;)
+    monkeypatch.setenv(&quot;CATALOGUE_TOKEN_LECTURE&quot;, &quot;jeton-lecture&quot;)
+    monkeypatch.setenv(&quot;CATALOGUE_ADMIN_USER&quot;, &quot;admin&quot;)
+    monkeypatch.setenv(&quot;CATALOGUE_ADMIN_PASSWORD&quot;, &quot;mdp-de-test&quot;)
+    settings.cache_clear()
+    yield
+    settings.cache_clear()
+
+
+@pytest.fixture()
+def client():
+    depot = Stockage()
+    app.dependency_overrides[obtenir_stockage] = lambda: depot
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+
+
+def test_liste_publique_et_vide(client):
+    r = client.get(&quot;/v1/formations&quot;)
+    assert r.status_code == 200
+    assert r.json() == {&quot;data&quot;: [], &quot;meta&quot;: {&quot;has_more&quot;: False, &quot;next_cursor&quot;: None, &quot;total&quot;: None}}
+
+
+def test_creation_sans_jeton_refusee(client):
+    r = client.post(&quot;/v1/formations&quot;, json=FORMATION)
+    assert r.status_code == 401
+    assert r.headers[&quot;WWW-Authenticate&quot;] == &quot;Bearer&quot;
+    assert r.headers[&quot;content-type&quot;].startswith(&quot;application/problem+json&quot;)
+    assert r.json()[&quot;code&quot;] == &quot;missing_token&quot;
+
+
+def test_creation_avec_jeton_de_lecture_interdite(client):
+    r = client.post(&quot;/v1/formations&quot;, json=FORMATION, headers=LECTURE)
+    assert r.status_code == 403
+    assert r.json()[&quot;code&quot;] == &quot;insufficient_scope&quot;
+
+
+def test_creation_puis_lecture(client):
+    r = client.post(&quot;/v1/formations&quot;, json=FORMATION, headers=ECRITURE)
+    assert r.status_code == 201
+    formation = r.json()
+    assert r.headers[&quot;Location&quot;].endswith(f&quot;/v1/formations/{formation['id']}&quot;)
+    assert client.get(f&quot;/v1/formations/{formation['id']}&quot;).json() == formation
+
+
+def test_doublon_de_code(client):
+    client.post(&quot;/v1/formations&quot;, json=FORMATION, headers=ECRITURE)
+    r = client.post(&quot;/v1/formations&quot;, json=FORMATION, headers=ECRITURE)
+    assert r.status_code == 409
+    assert r.json()[&quot;code&quot;] == &quot;code_deja_utilise&quot;
+
+
+def test_validation_renvoie_les_erreurs_par_champ(client):
+    r = client.post(&quot;/v1/formations&quot;, json={**FORMATION, &quot;duration&quot;: 99}, headers=ECRITURE)
+    assert r.status_code == 422
+    assert r.json()[&quot;errors&quot;][0][&quot;pointer&quot;] == &quot;/duration&quot;
+
+
+def test_patch_partiel_et_champ_interdit(client):
+    formation = client.post(&quot;/v1/formations&quot;, json=FORMATION, headers=ECRITURE).json()
+    url = f&quot;/v1/formations/{formation['id']}&quot;
+    r = client.patch(url, json={&quot;duration&quot;: 4}, headers=ECRITURE)
+    assert r.status_code == 200
+    assert r.json()[&quot;duration&quot;] == 4
+    assert r.json()[&quot;title&quot;] == FORMATION[&quot;title&quot;]
+    assert client.patch(url, json={&quot;code&quot;: &quot;AUT100000-X&quot;}, headers=ECRITURE).status_code == 422
+    assert client.patch(url, json={&quot;title&quot;: None}, headers=ECRITURE).status_code == 422
+
+
+def test_suppression_puis_404(client):
+    formation = client.post(&quot;/v1/formations&quot;, json=FORMATION, headers=ECRITURE).json()
+    url = f&quot;/v1/formations/{formation['id']}&quot;
+    assert client.delete(url, headers=ECRITURE).status_code == 204
+    assert client.get(url).status_code == 404
+
+
+def test_pagination_par_curseur(client):
+    for i in range(3):
+        client.post(&quot;/v1/formations&quot;, json={**FORMATION, &quot;code&quot;: f&quot;PYT10061{i}-F&quot;},
+                    headers=ECRITURE)
+    p1 = client.get(&quot;/v1/formations&quot;, params={&quot;page[size]&quot;: 2}).json()
+    assert len(p1[&quot;data&quot;]) == 2 and p1[&quot;meta&quot;][&quot;has_more&quot;] is True
+    p2 = client.get(&quot;/v1/formations&quot;,
+                    params={&quot;page[size]&quot;: 2, &quot;page[after]&quot;: p1[&quot;meta&quot;][&quot;next_cursor&quot;]}).json()
+    assert len(p2[&quot;data&quot;]) == 1 and p2[&quot;meta&quot;][&quot;has_more&quot;] is False
+
+
+def test_curseur_invalide(client):
+    r = client.get(&quot;/v1/formations&quot;, params={&quot;page[after]&quot;: &quot;pas-un-curseur&quot;})
+    assert r.status_code == 400
+
+
+def test_intervention_dans_le_passe_refusee(client):
+    formation = client.post(&quot;/v1/formations&quot;, json=FORMATION, headers=ECRITURE).json()
+    r = client.post(f&quot;/v1/formations/{formation['id']}/interventions&quot;, headers=ECRITURE,
+                    json={&quot;start_date&quot;: &quot;2020-01-06&quot;, &quot;location&quot;: &quot;Paris&quot;, &quot;places&quot;: 8})
+    assert r.status_code == 422
+    assert r.json()[&quot;errors&quot;][0][&quot;pointer&quot;] == &quot;/start_date&quot;
+
+
+def test_admin_basic(client):
+    assert client.get(&quot;/v1/admin/statistiques&quot;).status_code == 401
+    assert client.get(&quot;/v1/admin/statistiques&quot;, auth=(&quot;admin&quot;, &quot;faux&quot;)).status_code == 401
+    r = client.get(&quot;/v1/admin/statistiques&quot;, auth=(&quot;admin&quot;, &quot;mdp-de-test&quot;))
+    assert r.status_code == 200
+    assert r.json()[&quot;demandeur&quot;] == &quot;admin&quot;
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-bash">python -m pytest -q
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Raccorder le client du jour 1.</strong> <code>gorest_client</code> monte ses reprises uniquement pour <code>https://</code>. L'API locale tourne en <code>http://</code> : sans modification, les appels fonctionnent mais <strong>sans reprise automatique</strong>. Dans <code>gorest_client/gorest.py</code>, remplacer la ligne de montage de l'adaptateur :</p>
+<div class="code-block"><pre><code class="language-python">        adaptateur = HTTPAdapter(max_retries=retry)
+        self.intervention.mount(&quot;https://&quot;, adaptateur)
+        self.intervention.mount(&quot;http://&quot;, adaptateur)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Corrigé — <code>verifier_avec_client.py</code></strong></p>
+<div class="code-block"><pre><code class="language-python">&quot;&quot;&quot;Rejoue le scénario d'écriture du jour 1 contre l'API Catalogue locale.&quot;&quot;&quot;
+import os
+
+from gorest_client import (ApiError, AuthError, Conflit, GoRestClient, Settings,
+                              ValidationFailed)
+
+BASE = &quot;http://127.0.0.1:8000/v1&quot;
+DONNEES = {&quot;code&quot;: &quot;PYT100614-F&quot;, &quot;title&quot;: &quot;Python Avancé : Web Services&quot;,
+           &quot;duration&quot;: 3, &quot;level&quot;: &quot;avance&quot;}
+
+ecriture = GoRestClient(Settings(base_url=BASE, token=os.environ[&quot;CATALOGUE_TOKEN_ECRITURE&quot;]))
+lecture = GoRestClient(Settings(base_url=BASE, token=os.environ[&quot;CATALOGUE_TOKEN_LECTURE&quot;]))
+anonyme = GoRestClient(Settings(base_url=BASE))
+
+try:
+    anonyme.creer(&quot;formations&quot;, DONNEES)
+except AuthError as exc:
+    print(&quot;1. sans jeton          :&quot;, exc.status, exc.code)
+
+try:
+    lecture.creer(&quot;formations&quot;, DONNEES)
+except AuthError as exc:
+    print(&quot;2. jeton de lecture    :&quot;, exc.status, exc.code)
+
+formation = ecriture.creer(&quot;formations&quot;, DONNEES)
+print(&quot;3. créée               :&quot;, formation[&quot;id&quot;])
+
+try:
+    ecriture.creer(&quot;formations&quot;, DONNEES)
+except Conflit as exc:
+    print(&quot;4. doublon             :&quot;, exc.status, exc.code)
+
+try:
+    ecriture.creer(&quot;formations&quot;, {**DONNEES, &quot;code&quot;: &quot;PYT100615-F&quot;, &quot;duration&quot;: 99})
+except ValidationFailed as exc:
+    for e in exc.errors:
+        print(&quot;5. validation          :&quot;, e[&quot;pointer&quot;], e[&quot;detail&quot;])
+
+modifiee = ecriture.modifier(&quot;formations&quot;, formation[&quot;id&quot;], {&quot;duration&quot;: 4})
+print(&quot;6. modifiée            :&quot;, modifiee[&quot;duration&quot;], &quot;jours&quot;)
+
+print(&quot;7. liste               :&quot;, [f[&quot;code&quot;] for f in anonyme.lister(&quot;formations&quot;)])
+
+ecriture.supprimer(&quot;formations&quot;, formation[&quot;id&quot;])
+try:
+    anonyme.lire(&quot;formations&quot;, formation[&quot;id&quot;])
+except ApiError as exc:
+    print(&quot;8. après suppression   :&quot;, exc.status)
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="code-block"><pre><code class="language-bash"># terminal 1
+fastapi dev
+
+# terminal 2
+python verifier_avec_client.py
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<p><strong>Résultat attendu</strong> : les huit lignes s'affichent avec les codes <code>401</code>, <code>403</code>, <code>409</code>, <code>422</code>, puis <code>404</code> à la fin. Le <strong>même script</strong> servira le jour 3 à vérifier l'implémentation Django-Ninja : seule l'URL de base changera.</p>
+<p><strong>Points de contrôle de fin d'atelier</strong></p>
+<ul>
+<li>[ ] <code>python -m pytest -q</code> passe entièrement ;</li>
+<li>[ ] <code>verifier_avec_client.py</code> produit la sortie attendue ;</li>
+<li>[ ] aucun jeton ni mot de passe n'apparaît dans le code, ni dans <code>git status</code> ;</li>
+<li>[ ] <code>/docs</code> affiche les quatre groupes, les codes d'erreur documentés et le bouton <strong>Authorize</strong> ;</li>
+<li>[ ] le stagiaire sait expliquer pourquoi le test du <code>403</code> n'est possible que grâce à l'existence de <strong>deux</strong> jetons.</li>
+</ul>
+<h4>Extensions pour les plus rapides</h4>
+<ol>
+<li><strong><code>ETag</code> et <code>If-Match</code>.</strong> Calculer un <code>ETag</code> à partir de <code>updated_at</code>, le renvoyer sur <code>GET /v1/formations/{id}</code>, répondre <code>304</code> à un <code>If-None-Match</code> identique et <code>412</code> à un <code>If-Match</code> périmé. Le client du jour 1 sait déjà envoyer <code>If-Match</code>.</li>
+<li><strong><code>Idempotency-Key</code>.</strong> Mémoriser la réponse d'un <code>POST</code> pendant 24 heures par clé, et la rejouer à l'identique avec <code>Idempotent-Replayed: true</code>.</li>
+<li><strong>Limitation de débit.</strong> Compter les appels par jeton et répondre <code>429</code> avec <code>Retry-After</code>.</li>
+<li><strong>Annulation d'une intervention.</strong> Ajouter <code>PATCH /v1/formations/{id}/interventions/{intervention_id}</code> pour changer le <code>statut</code>, et refuser une intervention annulée de plus de 30 places.</li>
+<li><strong>Journal de requêtes.</strong> Un middleware (<code>@app.middleware("http")</code>) qui consigne méthode, chemin, statut et durée, sans l'en-tête <code>Authorization</code>.</li>
+</ol>
+<hr />
+</div>
+
+<div id="tab-synthese-de-fin-de-journee" class="tab-content">
+<h3>Ce qui est en place</h3>
+<div class="code-block"><pre><code>api-catalogue/
+├── .env                          # jour 1 + CATALOGUE_* (non versionné)
+├── pyproject.toml                # entrypoint FastAPI et pythonpath de pytest
+├── requirements.txt
+├── gorest_client/             # client réutilisable (reprises sur http et https)
+├── app/
+│   ├── main.py                   # application, routeur /v1, métadonnées OpenAPI
+│   ├── schemas/                # modèles Pydantic (création, modification, lecture)
+│   ├── errors.py                # Problem Details et gestionnaires
+│   ├── pagination.py             # curseur opaque
+│   ├── stockage.py               # stockage en mémoire (remplacé le jour 3)
+│   ├── dependances.py            # injection du stockage
+│   ├── auth.py               # BASIC, Bearer et portées
+│   └── routers/                   # formations, interventions, admin
+├── tests/test_api.py             # tests pytest avec TestClient
+└── verifier_avec_client.py       # scénario de bout en bout avec le client du jour 1
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<h3>Les réflexes installés</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Réflexe</th>
+<th>Pourquoi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Concevoir le contrat avant d'écrire du code</td>
+<td>une API publiée se modifie difficilement</td>
+</tr>
+<tr>
+<td>Un modèle Pydantic par usage (création, modification, lecture)</td>
+<td>pas d'<code>id</code> imposé par le client, aucun champs interne exposé</td>
+</tr>
+<tr>
+<td><code>PATCH</code> avec <code>model_dump(exclude_unset=True)</code></td>
+<td>distinguer « non envoyé » de « effacé »</td>
+</tr>
+<tr>
+<td>Un seul format d'erreur, y compris pour les erreurs du framework</td>
+<td>un consommateur n'écrit qu'un seul traitement d'erreur</td>
+</tr>
+<tr>
+<td><code>def</code> par défaut, <code>async def</code> seulement pour du code réellement asynchrone</td>
+<td>un appel bloquant dans <code>async def</code> fige tout le serveur</td>
+</tr>
+<tr>
+<td><code>secrets.compare_digest</code> pour tout secret</td>
+<td>éviter les attaques par canal temporel</td>
+</tr>
+<tr>
+<td>Même message pour identifiant inconnu et mot de passe faux</td>
+<td>ne pas aider à énumérer les comptes</td>
+</tr>
+<tr>
+<td><code>auto_error=False</code> et réponses d'erreur maîtrisées</td>
+<td>un contrat stable d'une version de FastAPI à l'autre</td>
+</tr>
+<tr>
+<td>Tester par <code>TestClient</code> <strong>et</strong> par un vrai client</td>
+<td>rapide en intégration continue, réaliste sur le réseau</td>
+</tr>
+<tr>
+<td>Exporter et versionner <code>openapi.json</code></td>
+<td>les évolutions du contrat se relisent dans Git</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Pièges vus aujourd'hui (à récapituler oralement)</h3>
+<ol>
+<li>Un <code>time.sleep</code> ou un <code>requests.get</code> dans une route <code>async def</code> bloque toutes les requêtes.</li>
+<li><code>page[size]</code> n'est pas un identifiant Python valide : sans <code>alias=</code>, le paramètre ne s'appelle pas comme attendu.</li>
+<li>Renvoyer <code>exc.errors()</code> tel quel peut provoquer un <code>500</code> quand la liste contient des objets non sérialisables.</li>
+<li>Un seul modèle pour tout permet à un client d'envoyer <code>id</code> ou <code>created_at</code>, et rend les champs obligatoires facultatifs à la modification.</li>
+<li>Un <code>PATCH</code> qui applique <code>model_dump()</code> sans <code>exclude_unset=True</code> écrase des champs avec leurs valeurs par défaut.</li>
+<li>Comparer un jeton avec <code>==</code> laisse fuiter des informations par le temps de réponse.</li>
+<li>Le comportement par défaut de <code>HTTPBearer</code> face à un en-tête absent a changé selon les versions de FastAPI : garder la main avec <code>auto_error=False</code>.</li>
+<li><code>lru_cache</code> sur la configuration : modifier <code>.env</code> ne suffit pas, il faut redémarrer ; dans les tests, <code>cache_clear()</code> s'impose.</li>
+<li>Lancer <code>python app/main.py</code> casse les importations relatives : démarrer par <code>fastapi dev</code> ou <code>uvicorn app.main:app</code>.</li>
+<li>Un <code>204</code> ne porte aucun corps ; renvoyer un JSON avec un <code>204</code> viole le protocole.</li>
+<li>Un client qui ne monte ses reprises que sur <code>https://</code> n'en a aucune contre un serveur local en <code>http://</code>.</li>
+<li>Un <code>500</code> ne doit jamais contenir de trace Python : journaliser côté serveur, renvoyer un <code>request_id</code>.</li>
+</ol>
+<h3>Aperçu du jour 3 — blocs 5 et 6</h3>
+<p>Aujourd'hui, l'API Catalogue repose sur un stockage en mémoire et sur FastAPI. Demain, le <strong>même contrat</strong> est réimplémenté avec <strong>Django-Ninja</strong> :</p>
+<ul>
+<li><strong>Bloc 5 — Implémenter un service web avec Django</strong> : écosystème des frameworks REST pour Django (Django REST framework, Django-Ninja), routes et méthodes, paramètres, validation et gestion des erreurs, authentification BASIC et Bearer, <strong>gestion des droits dans Django</strong>, <strong>mise en cache</strong> (Memcached ou Redis) ;</li>
+<li><strong>Atelier</strong> : créer un service web avec Django-Ninja ;</li>
+<li><strong>Bloc 6 — Déploiement d'un service web</strong> : architecture de base d'un déploiement Django, puis d'un déploiement FastAPI.</li>
+</ul>
+<p>Le modèle de données Django (ORM) remplace <code>Stockage</code>. <code>verifier_avec_client.py</code> et les tests de contrat servent à prouver que les deux implémentations se comportent de la même façon.</p>
+<p><strong>À préparer pour demain</strong> : valider <code>pytest</code> et <code>verifier_avec_client.py</code> avant de quitter la salle, et commiter le dépôt (sans <code>.env</code>). Le formateur indique en début de journée les paquets Django à installer.</p>
+<hr />
+</div>
+
+<div id="tab-annexe-commandes-du-jour-cheat-sheet" class="tab-content">
+<div class="code-block"><pre><code class="language-bash"># --- Installation et exécution --------------------------------------------
+pip install &quot;fastapi[standard]&quot;
+fastapi dev                                   # développement, rechargement automatique
+uvicorn app.main:app --reload                 # équivalent explicite
+python -m pytest -q                           # tests
+
+# --- Génération d'un secret ------------------------------------------------
+python -c &quot;import secrets; print(secrets.token_urlsafe(32))&quot;
+
+# --- Appels de contrôle (curl.exe sous Windows) -----------------------------
+curl.exe -i http://127.0.0.1:8000/v1/health
+curl.exe -g &quot;http://127.0.0.1:8000/v1/formations?page[size]=2&amp;sort=-title&amp;filter[level]=avance&quot;
+# syntaxe cmd.exe (^ et %VARIABLE%) ; en PowerShell : ` et $env:VARIABLE ; en bash : \ et $VARIABLE
+curl.exe -X POST http://127.0.0.1:8000/v1/formations ^
+  -H &quot;Authorization: Bearer %CATALOGUE_TOKEN_ECRITURE%&quot; -H &quot;Content-Type: application/json&quot; ^
+  -d &quot;{\&quot;code\&quot;:\&quot;PYT100614-F\&quot;,\&quot;title\&quot;:\&quot;Python Avancé : Web Services\&quot;,\&quot;duration\&quot;:3,\&quot;level\&quot;:\&quot;avance\&quot;}&quot;
+curl.exe -u admin:MOT_DE_PASSE http://127.0.0.1:8000/v1/admin/statistiques
+curl.exe -s http://127.0.0.1:8000/openapi.json -o openapi.json
+</code></pre><button class="copy-btn" onclick="copyCode(this)">Copier</button></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Besoin</th>
+<th>Code FastAPI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Route <code>GET</code></td>
+<td><code>@router.get("/{id}", response_model=FormationResponse)</code></td>
+</tr>
+<tr>
+<td>Code de succès</td>
+<td><code>status_code=status.HTTP_201_CREATED</code></td>
+</tr>
+<tr>
+<td>Réponse sans corps</td>
+<td><code>status_code=204, response_class=Response</code></td>
+</tr>
+<tr>
+<td>Paramètre de requête avec alias</td>
+<td><code>Annotated[int, Query(alias="page[size]", ge=1, le=100)] = 25</code></td>
+</tr>
+<tr>
+<td>Paramètre de chemin typé</td>
+<td><code>formation_id: uuid.UUID</code></td>
+</tr>
+<tr>
+<td>Corps JSON validé</td>
+<td><code>data: FormationCreate</code></td>
+</tr>
+<tr>
+<td>En-tête de réponse</td>
+<td><code>reponse: Response</code> puis <code>reponse.headers["Location"] = ...</code></td>
+</tr>
+<tr>
+<td>Dépendance sur une route</td>
+<td><code>dependencies=[Depends(authenticate_bearer("catalogue:write"))]</code></td>
+</tr>
+<tr>
+<td>Dépendance injectée</td>
+<td><code>depot: Annotated[Stockage, Depends(obtenir_stockage)]</code></td>
+</tr>
+<tr>
+<td>Erreur métier</td>
+<td><code>raise ApiError(404, "not_found", "Formation introuvable.")</code></td>
+</tr>
+<tr>
+<td>Test avec remplacement</td>
+<td><code>app.dependency_overrides[obtenir_stockage] = lambda: depot</code></td>
+</tr>
+</tbody>
+</table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Besoin Pydantic</th>
+<th>Code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Contrainte de champ</td>
+<td><code>Field(ge=1, le=10)</code>, <code>Field(min_length=3)</code>, <code>Field(pattern=...)</code></td>
+</tr>
+<tr>
+<td>Champ facultatif</td>
+<td><code>description: str \| None = None</code></td>
+</tr>
+<tr>
+<td>Énumération</td>
+<td><code>class Level(str, Enum)</code></td>
+</tr>
+<tr>
+<td>Validation métier d'un champ</td>
+<td><code>@field_validator("start_date")</code> + <code>@classmethod</code></td>
+</tr>
+<tr>
+<td>Validation de l'ensemble</td>
+<td><code>@model_validator(mode="after")</code></td>
+</tr>
+<tr>
+<td>Interdire les champs inconnus</td>
+<td><code>ConfigDict(extra="forbid")</code></td>
+</tr>
+<tr>
+<td>Champs réellement reçus</td>
+<td><code>model_dump(exclude_unset=True)</code>, <code>model_fields_set</code></td>
+</tr>
+</tbody>
+</table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Cas dans l'API Catalogue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>200</code></td>
+<td>lecture, modification</td>
+</tr>
+<tr>
+<td><code>201</code></td>
+<td>création, avec <code>Location</code> pour une formation</td>
+</tr>
+<tr>
+<td><code>204</code></td>
+<td>suppression</td>
+</tr>
+<tr>
+<td><code>400</code></td>
+<td>curseur de pagination illisible</td>
+</tr>
+<tr>
+<td><code>401</code></td>
+<td>jeton absent ou invalide, identifiants BASIC faux</td>
+</tr>
+<tr>
+<td><code>403</code></td>
+<td>jeton valide sans la portée <code>catalogue:write</code></td>
+</tr>
+<tr>
+<td><code>404</code></td>
+<td>formation inconnue</td>
+</tr>
+<tr>
+<td><code>405</code></td>
+<td>méthode non prévue sur une route existante</td>
+</tr>
+<tr>
+<td><code>409</code></td>
+<td>code de formation déjà utilisé</td>
+</tr>
+<tr>
+<td><code>422</code></td>
+<td>donnée invalide (corps, paramètre de requête ou de chemin)</td>
+</tr>
+<tr>
+<td><code>500</code></td>
+<td>bug imprévu, jamais de trace dans la réponse</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+  </div>
+</div>
+
+<script>
+// ─── THEME ──────────────────────────────────────────────────────────────────
+(function () {
+  const root = document.documentElement;
+  const stored = localStorage.getItem('dawan-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  updateToggleLabel();
+})();
+
+function updateToggleLabel() {
+  const current = document.documentElement.getAttribute('data-theme') ||
+    (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  document.getElementById('theme-icon').textContent = current === 'dark' ? '🌙' : '☀️';
+  document.getElementById('theme-label').textContent = current === 'dark' ? 'Sombre' : 'Clair';
+}
+
+function toggleTheme() {
+  const root = document.documentElement;
+  const current = root.getAttribute('data-theme') ||
+    (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  const next = current === 'dark' ? 'light' : 'dark';
+  root.setAttribute('data-theme', next);
+  localStorage.setItem('dawan-theme', next);
+  updateToggleLabel();
+}
+
+// ─── TABS ───────────────────────────────────────────────────────────────────
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.side-nav button').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+  document.querySelector('.content').scrollTo({ top: 0, behavior: 'instant' });
+}
+
+// ─── COPY CODE ──────────────────────────────────────────────────────────────
+function copyCode(btn) {
+  const pre = btn.previousElementSibling;
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.textContent = 'Copié !'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copier'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+</script>
+</body>
+</html>
