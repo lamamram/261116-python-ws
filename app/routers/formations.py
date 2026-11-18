@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Path, Query, HTTPException
 from typing import Annotated, Literal, List
 import uuid
-from ..schemas.formations import FormationSchema, Level
+from ..schemas.formations import FormationSchema, FormationCreate, FormationUpdate, Level
 
 # objet router à connecter à l'app !
 router = APIRouter(prefix="/formations", tags=["formations"])
@@ -80,9 +80,9 @@ def lister_formations(
     after: Annotated[int, Query(alias="page[after]", ge=0)] = 0,
     level: Annotated[str, Query(alias="filter[level]")] = None,
     sort: Annotated[Literal["code", "-code", "titre", "-titre"], Query()] = "code"
-):
+) -> List[FormationSchema]:
     """
-    handler = gestionnaire
+    handler = gestionnaire => publiée dans /docs
     """
     results = FORMATIONS_INT[after:after + size]
     if level:
@@ -95,3 +95,27 @@ def lister_formations(
         key=lambda f: f.get(sort.lstrip("-")),
         reverse=sort.startswith("-")
     )
+
+@router.post("", status_code=201, response_model=FormationSchema)
+def creer_formation(data: FormationCreate) -> FormationSchema:
+    uid = uuid.uuid4()
+    # ----------------------------------> data est une instance de FormationCreate, pas un dict
+    if list(filter(lambda f: f["code"] == data.code, FORMATIONS.values())):
+        raise HTTPException(status_code=409, detail=f"Formation {data.code} existe déjà.")
+    FORMATIONS[uid] = dict(data)
+    return FORMATIONS[uid]
+
+# curl.exe -X POST http://127.0.0.1:8000/v1/formations -H "Content-Type: application/json" -d "{\"code\": \"CODE123\", \"titre\": \"Titre de la formation\", \"level\": \"beginner\"}"
+
+
+@router.put("/{formation_id}", response_model=FormationSchema)
+def mettre_a_jour_formation(formation_id: uuid.UUID, data: FormationUpdate) -> FormationSchema:
+    uid = str(formation_id)
+    if uid not in FORMATIONS:
+        raise HTTPException(status_code=404, detail=f"Formation {uid} introuvable.")
+    # ---------------> transformation en dict mais avec paramètrage
+    # ---------------------------> ne modifie que les champs fournis dans la requête (en SQL SET param=value)
+    update_data = data.model_dump(exclude_unset=True)
+    FORMATIONS[uid]["level"] = Level[FORMATIONS[uid]["level"]].value
+    FORMATIONS[uid].update(update_data)
+    return FORMATIONS[uid]
