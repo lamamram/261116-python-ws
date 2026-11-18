@@ -92,7 +92,7 @@ Une **ressource** est un concept métier que les consommateurs veulent lire ou m
 
 | Ressource | Description | Identifiant | Relations |
 |---|---|---|---|
-| `formation` | une formation du catalogue (code, titre, durée, niveau) | UUID | possède des interventions |
+| `formation` | une formation du catalogue (code, titre, durée, level) | UUID | possède des interventions |
 | `intervention` | une date de réalisation d'une formation (début, lieu, places) | UUID | appartient à une formation |
 
 **Choix de l'identifiant.** Le jour 1 a montré que GoRest est passé d'identifiants entiers à des UUID. Un identifiant séquentiel (`/formations/17`) révèle le volume de données et invite à deviner les voisins (`/formations/18`). Un **UUID** est opaque et peut être généré par n'importe quel client ou serveur sans coordination. Le `code` métier (`PYT100614-F`) reste un champ de la ressource, unique mais distinct de l'identifiant technique.
@@ -109,7 +109,7 @@ Une **ressource** est un concept métier que les consommateurs veulent lire ou m
 | `/v1/formations` en minuscules | `/v1/Formations` | les URL sont sensibles à la casse |
 
 > [!TIP] Profondeur maximale
-> Limiter l'imbrication à deux niveaux (`/formations/{id}/interventions`). Au-delà, exposer la ressource enfant à la racine avec un filtre : `/v1/interventions?filter[formation_id]=…`.
+> Limiter l'imbrication à deux levelx (`/formations/{id}/interventions`). Au-delà, exposer la ressource enfant à la racine avec un filtre : `/v1/interventions?filter[formation_id]=…`.
 
 **Le versionnement dès le premier jour.** Le préfixe `/v1` figure dans toutes les URL. Le jour 1 a montré ce qu'un changement incompatible casse chez les consommateurs : la version 2 d'une API se publie sous `/v2`, pendant que `/v1` continue de répondre le temps de la migration.
 
@@ -192,9 +192,9 @@ Le contrat d'une liste est plus riche que celui d'un élément. Pour garder la c
 
 | Paramètre | Rôle | Exemple |
 |---|---|---|
-| `filter[niveau]` | filtre sur une valeur | `?filter[niveau]=avance` |
+| `filter[level]` | filtre sur une valeur | `?filter[level]=avance` |
 | `search` | recherche textuelle libre | `?search=python` |
-| `sort` | tri ; préfixe `-` pour décroissant | `?sort=-duree_jours` |
+| `sort` | tri ; préfixe `-` pour décroissant | `?sort=-duration` |
 | `page[size]` | éléments par page, de 1 à 100 (25 par défaut) | `?page[size]=10` |
 | `page[after]` | curseur opaque de la page suivante | `?page[after]=Mg==` |
 | `page[count]` | ajoute `meta.total` si `true` | `?page[count]=true` |
@@ -319,20 +319,20 @@ async def lire(request, code: str):
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-class Formation(BaseModel):
+class FormationSchema(BaseModel):
     code: str
     titre: str
 
 app = FastAPI()
 
 @app.get("/formations/{code}")
-def lire(code: str) -> Formation:
+def lire(code: str) -> FormationSchema:
     if code not in FORMATIONS:
         raise HTTPException(status_code=404, detail="Formation inconnue")
     return FORMATIONS[code]
 ```
 
-Les trois versions se ressemblent. La différence apparaît ailleurs : dans la version FastAPI, le modèle `Formation` **valide** la réponse, **documente** le schéma dans OpenAPI et fournit l'autocomplétion à l'éditeur, sans code supplémentaire.
+Les trois versions se ressemblent. La différence apparaît ailleurs : dans la version FastAPI, le modèle `FormationSchema` **valide** la réponse, **documente** le schéma dans OpenAPI et fournit l'autocomplétion à l'éditeur, sans code supplémentaire.
 
 **Choix pour la formation : FastAPI**, pour trois raisons : la validation et la documentation sortent des annotations de type que les stagiaires maîtrisent déjà ; le contrat OpenAPI est généré automatiquement (section 1.6 du jour 1) ; le client de test `TestClient` est fourni. Flask reste un très bon choix pour un petit service ou une application web avec gabarits ; Sanic, quand l'asynchrone et le débit priment sur l'écosystème.
 
@@ -421,7 +421,7 @@ Les décorateurs acceptent des options qui alimentent à la fois le **comporteme
 | Option | Effet |
 |---|---|
 | `status_code=201` | code renvoyé en cas de succès (aussi affiché dans OpenAPI) |
-| `response_model=Formation` | modèle de la réponse : filtre, valide et documente |
+| `response_model=FormationSchema` | modèle de la réponse : filtre, valide et documente |
 | `tags=["formations"]` | regroupe les routes dans `/docs` |
 | `summary="Lister les formations"` | titre court ; la docstring de la fonction sert de description |
 | `responses={404: {"description": "Formation inconnue"}}` | documente les codes d'erreur possibles |
@@ -483,7 +483,7 @@ FastAPI déduit l'**origine** de chaque paramètre à partir de la signature de 
 import uuid
 
 @router.get("/{formation_id}")
-def lire_formation(formation_id: uuid.UUID) -> Formation:
+def lire_formation(formation_id: uuid.UUID) -> FormationSchema:
     ...
 ```
 
@@ -497,7 +497,7 @@ from fastapi import Query
 
 @router.get("")
 def lister_formations(
-    niveau: Annotated[Niveau | None, Query(alias="filter[niveau]")] = None,
+    level: Annotated[Level | None, Query(alias="filter[level]")] = None,
     recherche: Annotated[str | None, Query(alias="search", min_length=2, max_length=50)] = None,
     tri: Annotated[Literal["code", "-code", "titre", "-titre"], Query(alias="sort")] = "code",
     taille: Annotated[int, Query(alias="page[size]", ge=1, le=100)] = 25,
@@ -529,7 +529,7 @@ FastAPI convertit `idempotency_key` en `Idempotency-Key` (les underscores devien
 
 ```python
 @router.post("", status_code=201)
-def creer_formation(donnees: FormationCreate) -> Formation:
+def creer_formation(donnees: FormationCreate) -> FormationSchema:
     ...
 ```
 
@@ -547,20 +547,20 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class Niveau(str, Enum):
+class Level(str, Enum):
     initiation = "initiation"
     intermediaire = "intermediaire"
     avance = "avance"
 
 
-class FormationBase(BaseModel):
+class FormationSchema(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     code: str = Field(pattern=r"^[A-Z]{3}\d{6}-[A-Z]$", examples=["PYT100614-F"])
     titre: str = Field(min_length=3, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
-    duree_jours: int = Field(ge=1, le=10)
-    niveau: Niveau
+    duration: int = Field(ge=1, le=10)
+    level: Level
 ```
 
 | Élément | Rôle |
@@ -579,7 +579,7 @@ class FormationBase(BaseModel):
 |---|---|---|
 | `FormationCreate` | corps du `POST` | tous les champs obligatoires, aucun `id` |
 | `FormationUpdate` | corps du `PATCH` | tous les champs facultatifs, `code` interdit (`extra="forbid"`) |
-| `Formation` | réponse | ajoute `id`, `cree_le`, `modifie_le` |
+| `FormationSchema` | réponse | ajoute `id`, `cree_le`, `modifie_le` |
 
 **Modification partielle avec `exclude_unset`.** Pour un `PATCH`, il faut distinguer « champ absent » (ne pas toucher) de « champ envoyé avec `null` » (effacer la valeur). Pydantic mémorise les champs réellement reçus :
 
@@ -611,26 +611,26 @@ class InterventionCreate(BaseModel):
 **`response_model` : contrôler ce qui sort.** Le modèle de réponse filtre les champs de l'objet renvoyé et valide sa forme. Un champ interne (`mot_de_passe_hash`, `note_interne`) absent du modèle de réponse **ne peut pas fuiter** dans le JSON, même si l'objet Python le contient. C'est une protection contre l'exposition accidentelle de données.
 
 ```python
-@router.get("/{formation_id}", response_model=Formation)
+@router.get("/{formation_id}", response_model=FormationSchema)
 def lire_formation(formation_id: uuid.UUID): ...
 ```
 
-Avec une annotation de retour (`-> Formation`), FastAPI déduit le même comportement. Les deux écritures sont équivalentes pour les cas simples ; `response_model=` reste utile quand la fonction renvoie un objet plus riche que ce qu'on veut exposer.
+Avec une annotation de retour (`-> FormationSchema`), FastAPI déduit le même comportement. Les deux écritures sont équivalentes pour les cas simples ; `response_model=` reste utile quand la fonction renvoie un objet plus riche que ce qu'on veut exposer.
 
 ### 🛠️ Micro-atelier 7 — Modéliser et voir la validation à l'œuvre (15 min)
 
-1. Créer `app/schemas.py` avec `Niveau`, `FormationBase`, `FormationCreate` et `Formation` (sections 4.5 et B5).
-2. Dans un shell Python, construire `FormationCreate(...)` avec des données valides, puis avec `duree_jours=99` ; lire le message d'erreur Pydantic.
+1. Créer `app/schemas.py` avec `Level`, `FormationSchema`, `FormationCreate` et `FormationSchema` (sections 4.5 et B5).
+2. Dans un shell Python, construire `FormationCreate(...)` avec des données valides, puis avec `duration=99` ; lire le message d'erreur Pydantic.
 3. Ajouter à `main.py` une route temporaire :
 
 ```python
-@app.post("/v1/essai", response_model=Formation)
-def essai(donnees: FormationCreate) -> Formation:
+@app.post("/v1/essai", response_model=FormationSchema)
+def essai(donnees: FormationCreate) -> FormationSchema:
     maintenant = datetime.now(timezone.utc)
-    return Formation(id=uuid.uuid4(), cree_le=maintenant, modifie_le=maintenant, **donnees.model_dump())
+    return FormationSchema(id=uuid.uuid4(), cree_le=maintenant, modifie_le=maintenant, **donnees.model_dump())
 ```
 
-4. Depuis `/docs`, envoyer un corps valide, puis un corps avec `niveau` invalide et un champ manquant ; comparer les réponses `200` et `422`.
+4. Depuis `/docs`, envoyer un corps valide, puis un corps avec `level` invalide et un champ manquant ; comparer les réponses `200` et `422`.
 
 **Résultat attendu** : la réponse `422` contient une liste `detail` avec, pour chaque erreur, un type (`missing`, `enum`, `less_than_equal`…), la localisation (`loc`) et un message. La section suivante transforme ce format par défaut en Problem Details.
 
@@ -647,7 +647,7 @@ Toutes les erreurs de l'API passent par la même porte de sortie : les **gestion
   "detail": [
     {
       "type": "less_than_equal",
-      "loc": ["body", "duree_jours"],
+      "loc": ["body", "duration"],
       "msg": "Input should be less than or equal to 10",
       "input": 99
     }
@@ -669,7 +669,7 @@ Chaque erreur indique son **type**, sa **localisation** (`loc` : d'où vient le 
   "instance": "/v1/formations",
   "request_id": "6f7c2f2e-…",
   "errors": [
-    { "pointer": "/duree_jours", "code": "less_than_equal", "detail": "Input should be less than or equal to 10" }
+    { "pointer": "/duration", "code": "less_than_equal", "detail": "Input should be less than or equal to 10" }
   ]
 }
 ```
@@ -762,7 +762,7 @@ Le gestionnaire pour `Exception` joue un rôle de filet de sécurité : il journ
 
 1. Créer `app/erreurs.py` avec `ErreurApi`, `probleme`, `pointeur` et `installer_gestionnaires` (version complète en B5).
 2. Appeler `installer_gestionnaires(app)` dans `main.py`.
-3. Vérifier avec `curl.exe -i` : une route inconnue (`/v1/nexiste-pas`), un `POST /v1/essai` avec un `duree_jours` hors plage, une méthode non prévue (`DELETE /v1/sante`).
+3. Vérifier avec `curl.exe -i` : une route inconnue (`/v1/nexiste-pas`), un `POST /v1/essai` avec un `duration` hors plage, une méthode non prévue (`DELETE /v1/sante`).
 4. Pour chacune : relever le statut, l'en-tête `Content-Type` (`application/problem+json`), le champ `code`.
 5. Les afficher avec `catalogue_client` en pointant vers `http://127.0.0.1:8000/v1` : l'exception est-elle correctement typée ? *(Remarque : le client monte ses reprises sur `https://` uniquement ; voir l'atelier.)*
 
@@ -783,7 +783,7 @@ Depot = Annotated[Stockage, Depends(obtenir_stockage)]
 
 
 @router.get("/{formation_id}")
-def lire_formation(formation_id: uuid.UUID, depot: Depot) -> Formation:
+def lire_formation(formation_id: uuid.UUID, depot: Depot) -> FormationSchema:
     return depot.formation(formation_id)
 ```
 
@@ -999,7 +999,7 @@ def client():
     app.dependency_overrides.clear()
 ```
 
-> [!TIP] Deux niveaux de test complémentaires
+> [!TIP] Deux levelx de test complémentaires
 > Les tests `pytest` avec `TestClient` sont rapides et s'exécutent en intégration continue. Le `catalogue_client` du jour 1 exécute un **vrai** appel HTTP contre un serveur lancé : il vérifie ce que `TestClient` ne voit pas (en-têtes réellement envoyés, reprises, encodage des crochets dans l'URL).
 
 ---
@@ -1198,7 +1198,7 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
-class Niveau(str, Enum):
+class Level(str, Enum):
     initiation = "initiation"
     intermediaire = "intermediaire"
     avance = "avance"
@@ -1210,17 +1210,17 @@ class StatutIntervention(str, Enum):
     annulee = "annulee"
 
 
-class FormationBase(BaseModel):
+class FormationSchema(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     code: str = Field(pattern=r"^[A-Z]{3}\d{6}-[A-Z]$", examples=["PYT100614-F"])
     titre: str = Field(min_length=3, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
-    duree_jours: int = Field(ge=1, le=10)
-    niveau: Niveau
+    duration: int = Field(ge=1, le=10)
+    level: Level
 
 
-class FormationCreate(FormationBase):
+class FormationCreate(FormationSchema):
     pass
 
 
@@ -1229,18 +1229,18 @@ class FormationUpdate(BaseModel):
 
     titre: str | None = Field(default=None, min_length=3, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
-    duree_jours: int | None = Field(default=None, ge=1, le=10)
-    niveau: Niveau | None = None
+    duration: int | None = Field(default=None, ge=1, le=10)
+    level: Level | None = None
 
     @model_validator(mode="after")
     def refuser_null_sur_champs_obligatoires(self) -> "FormationUpdate":
-        for champ in ("titre", "duree_jours", "niveau"):
+        for champ in ("titre", "duration", "level"):
             if champ in self.model_fields_set and getattr(self, champ) is None:
                 raise ValueError(f"{champ} ne peut pas être null")
         return self
 
 
-class Formation(FormationBase):
+class Formation(FormationSchema):
     id: uuid.UUID
     cree_le: datetime
     modifie_le: datetime
@@ -1274,7 +1274,7 @@ class Meta(BaseModel):
 
 
 class PageFormations(BaseModel):
-    data: list[Formation]
+    data: list[FormationSchema]
     meta: Meta
 
 
@@ -1297,7 +1297,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .erreurs import ErreurApi
-from .schemas import (Formation, FormationCreate, Niveau, InterventionCreate,
+from .schemas import (FormationSchema, FormationCreate, Level, InterventionCreate,
                       InterventionFormation)
 
 
@@ -1305,15 +1305,15 @@ class Stockage:
     """Stockage en mémoire ; remplacé par l'ORM Django le jour 3."""
 
     def __init__(self) -> None:
-        self.formations: dict[uuid.UUID, Formation] = {}
+        self.formations: dict[uuid.UUID, FormationSchema] = {}
         self.interventions: dict[uuid.UUID, InterventionFormation] = {}
 
     # --- formations ------------------------------------------------------
-    def lister_formations(self, niveau: Niveau | None, recherche: str | None,
-                          tri: str) -> list[Formation]:
+    def lister_formations(self, level: Level | None, recherche: str | None,
+                          tri: str) -> list[FormationSchema]:
         elements = list(self.formations.values())
-        if niveau:
-            elements = [f for f in elements if f.niveau == niveau]
+        if level:
+            elements = [f for f in elements if f.level == level]
         if recherche:
             terme = recherche.casefold()
             elements = [f for f in elements
@@ -1321,23 +1321,23 @@ class Stockage:
         return sorted(elements, key=lambda f: getattr(f, tri.lstrip("-")),
                       reverse=tri.startswith("-"))
 
-    def formation(self, formation_id: uuid.UUID) -> Formation:
+    def formation(self, formation_id: uuid.UUID) -> FormationSchema:
         try:
             return self.formations[formation_id]
         except KeyError:
             raise ErreurApi(404, "not_found", "Formation introuvable.") from None
 
-    def creer_formation(self, donnees: FormationCreate) -> Formation:
+    def creer_formation(self, donnees: FormationCreate) -> FormationSchema:
         if any(f.code == donnees.code for f in self.formations.values()):
             raise ErreurApi(409, "code_deja_utilise", f"Le code {donnees.code} existe déjà.")
         maintenant = datetime.now(timezone.utc)
-        formation = Formation(id=uuid.uuid4(), cree_le=maintenant, modifie_le=maintenant,
+        formation = FormationSchema(id=uuid.uuid4(), cree_le=maintenant, modifie_le=maintenant,
                               **donnees.model_dump())
         self.formations[formation.id] = formation
         return formation
 
     def modifier_formation(self, formation_id: uuid.UUID,
-                           changements: dict[str, Any]) -> Formation:
+                           changements: dict[str, Any]) -> FormationSchema:
         actuelle = self.formation(formation_id)
         modifiee = actuelle.model_copy(
             update={**changements, "modifie_le": datetime.now(timezone.utc)})
@@ -1405,7 +1405,7 @@ def paginer(elements: list[Any], taille: int, apres: str | None,
 
 **Point de contrôle**
 
-- [ ] `FormationCreate(code="PYT100614-F", titre="…", duree_jours=3, niveau="avance")` s'instancie dans un shell Python, et `duree_jours=99` lève une `ValidationError` ;
+- [ ] `FormationCreate(code="PYT100614-F", titre="…", duration=3, level="avance")` s'instancie dans un shell Python, et `duration=99` lève une `ValidationError` ;
 - [ ] le stagiaire explique pourquoi `FormationUpdate` interdit `code` et pourquoi `null` est refusé sur `titre` ;
 - [ ] il sait dire ce que fait `model_fields_set`.
 
@@ -1421,7 +1421,7 @@ from fastapi import APIRouter, Query, Request, Response, status
 
 from ..dependances import Depot
 from ..pagination import paginer
-from ..schemas import (Formation, FormationCreate, FormationUpdate, Niveau,
+from ..schemas import (FormationSchema, FormationCreate, FormationUpdate, Level,
                        PageFormations)
 from ..securite import ECRITURE
 
@@ -1431,39 +1431,39 @@ router = APIRouter(prefix="/formations", tags=["formations"])
 @router.get("", response_model=PageFormations, summary="Lister les formations")
 def lister_formations(
     depot: Depot,
-    niveau: Annotated[Niveau | None, Query(alias="filter[niveau]")] = None,
+    level: Annotated[Level | None, Query(alias="filter[level]")] = None,
     recherche: Annotated[str | None, Query(alias="search", min_length=2, max_length=50)] = None,
-    tri: Annotated[Literal["code", "-code", "titre", "-titre", "duree_jours", "-duree_jours"],
+    tri: Annotated[Literal["code", "-code", "titre", "-titre", "duration", "-duration"],
                    Query(alias="sort")] = "code",
     taille: Annotated[int, Query(alias="page[size]", ge=1, le=100)] = 25,
     apres: Annotated[str | None, Query(alias="page[after]")] = None,
     compter: Annotated[bool, Query(alias="page[count]")] = False,
 ):
     """Liste filtrée, triée et paginée par curseur."""
-    return paginer(depot.lister_formations(niveau, recherche, tri), taille, apres, compter)
+    return paginer(depot.lister_formations(level, recherche, tri), taille, apres, compter)
 
 
-@router.get("/{formation_id}", response_model=Formation, summary="Lire une formation",
+@router.get("/{formation_id}", response_model=FormationSchema, summary="Lire une formation",
             responses={404: {"description": "Formation inconnue"}})
-def lire_formation(formation_id: uuid.UUID, depot: Depot) -> Formation:
+def lire_formation(formation_id: uuid.UUID, depot: Depot) -> FormationSchema:
     return depot.formation(formation_id)
 
 
-@router.post("", response_model=Formation, status_code=status.HTTP_201_CREATED,
+@router.post("", response_model=FormationSchema, status_code=status.HTTP_201_CREATED,
              dependencies=ECRITURE, summary="Créer une formation",
              responses={409: {"description": "Code déjà utilisé"}})
 def creer_formation(donnees: FormationCreate, depot: Depot,
-                    request: Request, reponse: Response) -> Formation:
+                    request: Request, reponse: Response) -> FormationSchema:
     formation = depot.creer_formation(donnees)
     reponse.headers["Location"] = str(request.url_for("lire_formation",
                                                       formation_id=formation.id))
     return formation
 
 
-@router.patch("/{formation_id}", response_model=Formation, dependencies=ECRITURE,
+@router.patch("/{formation_id}", response_model=FormationSchema, dependencies=ECRITURE,
               summary="Modifier partiellement une formation")
 def modifier_formation(formation_id: uuid.UUID, changements: FormationUpdate,
-                       depot: Depot) -> Formation:
+                       depot: Depot) -> FormationSchema:
     return depot.modifier_formation(formation_id, changements.model_dump(exclude_unset=True))
 
 
@@ -1481,7 +1481,7 @@ La sécurité manque encore : `ECRITURE` est défini à l'étape 5. Pour avancer
 
 **Point de contrôle** (avec `/docs`, sans authentification pour l'instant)
 
-- [ ] `POST` avec le corps `{"code": "PYT100614-F", "titre": "Python Avancé : Web Services", "duree_jours": 3, "niveau": "avance"}` renvoie `201` et un en-tête `Location` ;
+- [ ] `POST` avec le corps `{"code": "PYT100614-F", "titre": "Python Avancé : Web Services", "duration": 3, "level": "avance"}` renvoie `201` et un en-tête `Location` ;
 - [ ] `GET /v1/formations?page[size]=1` renvoie une enveloppe `data` + `meta` ;
 - [ ] un `PATCH` avec `{"code": "AUT100000-X"}` renvoie `422` (champ interdit) ;
 - [ ] un `DELETE` répond `204` sans corps, un second `DELETE` répond `404`.
@@ -1664,7 +1664,7 @@ from app.stockage import Stockage
 ECRITURE = {"Authorization": "Bearer jeton-ecriture"}
 LECTURE = {"Authorization": "Bearer jeton-lecture"}
 FORMATION = {"code": "PYT100614-F", "titre": "Python Avancé : Web Services",
-             "duree_jours": 3, "niveau": "avance"}
+             "duration": 3, "level": "avance"}
 
 
 @pytest.fixture(autouse=True)
@@ -1722,17 +1722,17 @@ def test_doublon_de_code(client):
 
 
 def test_validation_renvoie_les_erreurs_par_champ(client):
-    r = client.post("/v1/formations", json={**FORMATION, "duree_jours": 99}, headers=ECRITURE)
+    r = client.post("/v1/formations", json={**FORMATION, "duration": 99}, headers=ECRITURE)
     assert r.status_code == 422
-    assert r.json()["errors"][0]["pointer"] == "/duree_jours"
+    assert r.json()["errors"][0]["pointer"] == "/duration"
 
 
 def test_patch_partiel_et_champ_interdit(client):
     formation = client.post("/v1/formations", json=FORMATION, headers=ECRITURE).json()
     url = f"/v1/formations/{formation['id']}"
-    r = client.patch(url, json={"duree_jours": 4}, headers=ECRITURE)
+    r = client.patch(url, json={"duration": 4}, headers=ECRITURE)
     assert r.status_code == 200
-    assert r.json()["duree_jours"] == 4
+    assert r.json()["duration"] == 4
     assert r.json()["titre"] == FORMATION["titre"]
     assert client.patch(url, json={"code": "AUT100000-X"}, headers=ECRITURE).status_code == 422
     assert client.patch(url, json={"titre": None}, headers=ECRITURE).status_code == 422
@@ -1800,7 +1800,7 @@ from catalogue_client import (ApiError, AuthError, Conflit, GoRestClient, Settin
 
 BASE = "http://127.0.0.1:8000/v1"
 DONNEES = {"code": "PYT100614-F", "titre": "Python Avancé : Web Services",
-           "duree_jours": 3, "niveau": "avance"}
+           "duration": 3, "level": "avance"}
 
 ecriture = GoRestClient(Settings(base_url=BASE, token=os.environ["CATALOGUE_TOKEN_ECRITURE"]))
 lecture = GoRestClient(Settings(base_url=BASE, token=os.environ["CATALOGUE_TOKEN_LECTURE"]))
@@ -1825,13 +1825,13 @@ except Conflit as exc:
     print("4. doublon             :", exc.status, exc.code)
 
 try:
-    ecriture.creer("formations", {**DONNEES, "code": "PYT100615-F", "duree_jours": 99})
+    ecriture.creer("formations", {**DONNEES, "code": "PYT100615-F", "duration": 99})
 except ValidationFailed as exc:
     for e in exc.errors:
         print("5. validation          :", e["pointer"], e["detail"])
 
-modifiee = ecriture.modifier("formations", formation["id"], {"duree_jours": 4})
-print("6. modifiée            :", modifiee["duree_jours"], "jours")
+modifiee = ecriture.modifier("formations", formation["id"], {"duration": 4})
+print("6. modifiée            :", modifiee["duration"], "jours")
 
 print("7. liste               :", [f["code"] for f in anonyme.lister("formations")])
 
@@ -1951,18 +1951,18 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 # --- Appels de contrôle (curl.exe sous Windows) -----------------------------
 curl.exe -i http://127.0.0.1:8000/v1/sante
-curl.exe -g "http://127.0.0.1:8000/v1/formations?page[size]=2&sort=-titre&filter[niveau]=avance"
+curl.exe -g "http://127.0.0.1:8000/v1/formations?page[size]=2&sort=-titre&filter[level]=avance"
 # syntaxe cmd.exe (^ et %VARIABLE%) ; en PowerShell : ` et $env:VARIABLE ; en bash : \ et $VARIABLE
 curl.exe -X POST http://127.0.0.1:8000/v1/formations ^
   -H "Authorization: Bearer %CATALOGUE_TOKEN_ECRITURE%" -H "Content-Type: application/json" ^
-  -d "{\"code\":\"PYT100614-F\",\"titre\":\"Python Avancé : Web Services\",\"duree_jours\":3,\"niveau\":\"avance\"}"
+  -d "{\"code\":\"PYT100614-F\",\"titre\":\"Python Avancé : Web Services\",\"duration\":3,\"level\":\"avance\"}"
 curl.exe -u admin:MOT_DE_PASSE http://127.0.0.1:8000/v1/admin/statistiques
 curl.exe -s http://127.0.0.1:8000/openapi.json -o openapi.json
 ```
 
 | Besoin | Code FastAPI |
 |---|---|
-| Route `GET` | `@router.get("/{id}", response_model=Formation)` |
+| Route `GET` | `@router.get("/{id}", response_model=FormationSchema)` |
 | Code de succès | `status_code=status.HTTP_201_CREATED` |
 | Réponse sans corps | `status_code=204, response_class=Response` |
 | Paramètre de requête avec alias | `Annotated[int, Query(alias="page[size]", ge=1, le=100)] = 25` |
@@ -1978,7 +1978,7 @@ curl.exe -s http://127.0.0.1:8000/openapi.json -o openapi.json
 |---|---|
 | Contrainte de champ | `Field(ge=1, le=10)`, `Field(min_length=3)`, `Field(pattern=...)` |
 | Champ facultatif | `description: str \| None = None` |
-| Énumération | `class Niveau(str, Enum)` |
+| Énumération | `class Level(str, Enum)` |
 | Validation métier d'un champ | `@field_validator("date_debut")` + `@classmethod` |
 | Validation de l'ensemble | `@model_validator(mode="after")` |
 | Interdire les champs inconnus | `ConfigDict(extra="forbid")` |
