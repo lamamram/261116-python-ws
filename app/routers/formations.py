@@ -1,7 +1,8 @@
 # app/routers/formations.py
 from fastapi import APIRouter, Path, Query, HTTPException
-from typing import Annotated, Literal
+from typing import Annotated, Literal, List
 import uuid
+from ..schemas.formations import FormationSchema, Level
 
 # objet router à connecter à l'app !
 router = APIRouter(prefix="/formations", tags=["formations"])
@@ -45,13 +46,19 @@ def lire_formation():
 #     return FORMATIONS_INT[formation_id - 1] or {}
 
 # 2/ uuid: identifiant unique universel
-@router.get("/{formation_id}")
+# -----------------------------------> avec çà la réponse est validée par le schéma !
+@router.get("/{formation_id}", response_model=FormationSchema)
 # ------------------------------> ici les annotations peuvent être bloquantes
 def lire_formation(formation_id: uuid.UUID):
     uid = str(formation_id)
     if uid not in FORMATIONS:
         raise HTTPException(status_code=404, detail=f"Formation {uid} introuvable.")
-    return FORMATIONS.get(uid, {})
+    result = FORMATIONS.get(uid)
+    
+    # remplacer la clé d'énum python par sa valeur !
+    result["level"] = Level[result["level"]].value
+
+    return result
 
 ## 3/ slug: str unique avec lettre miniscules, chiffres et -
 # @router.get("/{slug}")
@@ -61,8 +68,10 @@ def lire_formation(formation_id: uuid.UUID):
 
 #### gestion des query params
 
-# décorateur qui achemine le flux entrant sur cette fonctin
-@router.get("")
+# décorateur qui achemine le flux entrant sur cette fonction
+
+# ---------------------------> liste de schémas
+@router.get("", response_model=List[FormationSchema])
 def lister_formations(
     # --> annotation complexe
     # ------------------> contraintes de queryparams (?param=..&..)
@@ -78,6 +87,8 @@ def lister_formations(
     results = FORMATIONS_INT[after:after + size]
     if level:
         results = list(filter(lambda f: f["level"] == level, results))
+
+    results = list(map(lambda f: {**f, "level": Level[f["level"]].value}, results))
     
     return sorted(
         results, 
