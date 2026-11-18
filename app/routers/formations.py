@@ -1,28 +1,29 @@
 # app/routers/formations.py
-from fastapi import APIRouter, Path
+from fastapi import APIRouter, Path, Query
+from typing import Annotated, Literal
 import uuid
 
 # objet router à connecter à l'app !
 router = APIRouter(prefix="/formations", tags=["formations"])
 
 # version entier
-FORMTIONS_INT = [
-    {"code": "PYT100614-F", "titre": "Python Avancé : Web Services"},
-    {"code": "JAV100614-B", "titre": "Java Avancé : Bases"},
-    {"code": "DOK100614-C", "titre": "Docker Avancé : Conteneurs"},
+FORMATIONS_INT = [
+    {"code": "PYT100614-F", "titre": "Python Avancé : Web Services", "level": "advanced", "duration": 3},
+    {"code": "JAV100614-B", "titre": "Java Avancé : Bases", "level": "advanced", "duration": 5},
+    {"code": "DOK100614-C", "titre": "Docker initiation : Conteneurs", "level": "beginner", "duration": 2},
 ]
 
 FORMATIONS_SLUG = {
-    "python-avance-web-services": {"code": "PYT100614-F", "titre": "Python Avancé : Web Services"},
-    "java-avance-bases": {"code": "JAV100614-B", "titre": "Java Avancé : Bases"},
-    "docker-avance-conteneurs": {"code": "DOK100614-C", "titre": "Docker Avancé : Conteneurs"},
+    "python-avance-web-services": {"code": "PYT100614-F", "titre": "Python Avancé : Web Services", "level": "advanced", "duration": 3},
+    "java-avance-bases": {"code": "JAV100614-B", "titre": "Java Avancé : Bases", "level": "advanced", "duration": 5},
+    "docker-initiation-conteneurs": {"code": "DOK100614-C", "titre": "Docker initiation : Conteneurs", "level": "beginner", "duration": 2},
 }
 
 # version uuid
 FORMATIONS = {
-    "e7b2af20-31ec-4d17-8b82-a0bf63b85084": {"code": "PYT100614-F", "titre": "Python Avancé : Web Services"},
-    "e7b2af20-31ec-4d17-8b82-a0bf63b85085": {"code": "JAV100614-B", "titre": "Java Avancé : Bases"},
-    "e7b2af20-31ec-4d17-8b82-a0bf63b85086": {"code": "DOK100614-C", "titre": "Docker Avancé : Conteneurs"},
+    "e7b2af20-31ec-4d17-8b82-a0bf63b85084": {"code": "PYT100614-F", "titre": "Python Avancé : Web Services", "level": "advanced", "duration": 3},
+    "e7b2af20-31ec-4d17-8b82-a0bf63b85085": {"code": "JAV100614-B", "titre": "Java Avancé : Bases", "level": "advanced", "duration": 5},
+    "e7b2af20-31ec-4d17-8b82-a0bf63b85086": {"code": "DOK100614-C", "titre": "Docker initiation : Conteneurs", "level": "beginner", "duration": 2},
 }
 
 ### REMARQUE: pour trouver la route correcte, FastAPI utilise l'ordre des décorateurs et la spécificité des chemins.
@@ -37,9 +38,11 @@ def lire_formation():
 
 ## 1/ int:
 # @router.get("/{formation_id}")
-# # ------------------------------------> objet de contrainte sur un identifiant de chemin
+# # ------------------------------------> version précédente: objet de contrainte sur un identifiant de chemin en tant que valeur par défaut !
 # def lire_formation(formation_id: int = Path(gt=0)):
-#     return FORMTIONS_INT[formation_id - 1] or {}
+# --------------------------------> version récente avec annotation complexe
+# def lire_formation(formation_id: Annotated[int, Path(gt=0)]):
+#     return FORMATIONS_INT[formation_id - 1] or {}
 
 # 2/ uuid: identifiant unique universel
 @router.get("/{formation_id}")
@@ -52,10 +55,29 @@ def lire_formation(formation_id: uuid.UUID):
 # def lire_formation(slug: str = Path(min_length=3, max_length=100, regex="^[a-z0-9-]{3,}$")):
 #     return FORMATIONS_SLUG.get(slug, {})
 
+
+#### gestion des query params
+
 # décorateur qui achemine le flux entrant sur cette fonctin
 @router.get("")
-def lister_formations():
+def lister_formations(
+    # --> annotation complexe
+    # ------------------> contraintes de queryparams (?param=..&..)
+    # ------------------------------------------------------------> véritable valeur par défaut
+    size: Annotated[int, Query(alias="page[size]", ge=1, le=100)] = 25,
+    after: Annotated[int, Query(alias="page[after]", ge=0)] = 0,
+    level: Annotated[str, Query(alias="filter[level]")] = None,
+    sort: Annotated[Literal["code", "-code", "titre", "-titre"], Query()] = "code"
+):
     """
     handler = gestionnaire
     """
-    ...
+    results = FORMATIONS_INT[after:after + size]
+    if level:
+        results = list(filter(lambda f: f["level"] == level, results))
+    
+    return sorted(
+        results, 
+        key=lambda f: f.get(sort.lstrip("-")),
+        reverse=sort.startswith("-")
+    )
