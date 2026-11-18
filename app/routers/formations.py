@@ -1,5 +1,5 @@
 # app/routers/formations.py
-from fastapi import APIRouter, Path, Query
+from fastapi import APIRouter, Path, Query, HTTPException
 from typing import Annotated, Literal
 import uuid
 
@@ -8,22 +8,22 @@ router = APIRouter(prefix="/formations", tags=["formations"])
 
 # version entier
 FORMATIONS_INT = [
-    {"code": "PYT100614-F", "titre": "Python Avancé : Web Services", "level": "advanced", "duration": 3},
-    {"code": "JAV100614-B", "titre": "Java Avancé : Bases", "level": "advanced", "duration": 5},
-    {"code": "DOK100614-C", "titre": "Docker initiation : Conteneurs", "level": "beginner", "duration": 2},
+    {"code": "PYT100614-F", "titre": "Python Avancé : Web Services", "level": "advanced", "duration": 3, "description": "Formation avancée sur les Web Services en Python"},
+    {"code": "JAV100614-B", "titre": "Java Avancé : Bases", "level": "advanced", "duration": 5, "description": "Formation avancée sur les bases en Java"},
+    {"code": "DOK100614-C", "titre": "Docker initiation : Conteneurs", "level": "beginner", "duration": 2, "description": "Formation d'initiation à Docker et aux conteneurs"},
 ]
 
 FORMATIONS_SLUG = {
-    "python-avance-web-services": {"code": "PYT100614-F", "titre": "Python Avancé : Web Services", "level": "advanced", "duration": 3},
-    "java-avance-bases": {"code": "JAV100614-B", "titre": "Java Avancé : Bases", "level": "advanced", "duration": 5},
-    "docker-initiation-conteneurs": {"code": "DOK100614-C", "titre": "Docker initiation : Conteneurs", "level": "beginner", "duration": 2},
+    "python-avance-web-services": {"code": "PYT100614-F", "titre": "Python Avancé : Web Services", "level": "advanced", "duration": 3, "description": "Formation avancée sur les Web Services en Python"},
+    "java-avance-bases": {"code": "JAV100614-B", "titre": "Java Avancé : Bases", "level": "advanced", "duration": 5, "description": "Formation avancée sur les bases en Java"},
+    "docker-initiation-conteneurs": {"code": "DOK100614-C", "titre": "Docker initiation : Conteneurs", "level": "beginner", "duration": 2, "description": "Formation d'initiation à Docker et aux conteneurs"},
 }
 
 # version uuid
 FORMATIONS = {
-    "e7b2af20-31ec-4d17-8b82-a0bf63b85084": {"code": "PYT100614-F", "titre": "Python Avancé : Web Services", "level": "advanced", "duration": 3},
-    "e7b2af20-31ec-4d17-8b82-a0bf63b85085": {"code": "JAV100614-B", "titre": "Java Avancé : Bases", "level": "advanced", "duration": 5},
-    "e7b2af20-31ec-4d17-8b82-a0bf63b85086": {"code": "DOK100614-C", "titre": "Docker initiation : Conteneurs", "level": "beginner", "duration": 2},
+    "e7b2af20-31ec-4d17-8b82-a0bf63b85084": {"code": "PYT100614-F", "titre": "Python Avancé : Web Services", "level": "advanced", "duration": 3, "description": "Formation avancée sur les Web Services en Python"},
+    "e7b2af20-31ec-4d17-8b82-a0bf63b85085": {"code": "JAV100614-B", "titre": "Java Avancé : Bases", "level": "advanced", "duration": 5, "description": "Formation avancée sur les bases en Java"},
+    "e7b2af20-31ec-4d17-8b82-a0bf63b85086": {"code": "DOK100614-C", "titre": "Docker initiation : Conteneurs", "level": "beginner", "duration": 2, "description": "Formation d'initiation à Docker et aux conteneurs"},
 }
 
 ### REMARQUE: pour trouver la route correcte, FastAPI utilise l'ordre des décorateurs et la spécificité des chemins.
@@ -48,7 +48,10 @@ def lire_formation():
 @router.get("/{formation_id}")
 # ------------------------------> ici les annotations peuvent être bloquantes
 def lire_formation(formation_id: uuid.UUID):
-    return FORMATIONS.get(str(formation_id), {})
+    uid = str(formation_id)
+    if uid not in FORMATIONS:
+        raise HTTPException(status_code=404, detail=f"Formation {uid} introuvable.")
+    return FORMATIONS.get(uid, {})
 
 ## 3/ slug: str unique avec lettre miniscules, chiffres et -
 # @router.get("/{slug}")
