@@ -1,0 +1,9 @@
+# pyproject.toml
+# fichier standard en python 
+# usages
+#  1/ version du python
+#  2/ liste des dépendances dev, prod
+#  3/ configurations des outils
+[tool.fastapi]
+# point d'entrée de fastapi variable app dans le module main du package app
+entrypoint = "app.main:app"

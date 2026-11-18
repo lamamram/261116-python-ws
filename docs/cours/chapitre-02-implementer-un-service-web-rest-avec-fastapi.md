@@ -393,7 +393,7 @@ La commande `fastapi dev` démarre un serveur de développement avec **rechargem
 | `http://127.0.0.1:8000/openapi.json` | le contrat OpenAPI brut, lisible par les outils (Postman, Bruno, générateurs de client) |
 
 > [!WARN] `fastapi dev` n'est pas un serveur de production
-> Le mode `dev` active le rechargement automatique et écoute en local uniquement. La mise en production (Uvicorn ou Gunicorn derrière un proxy) est traitée le jour 3. Si la commande `fastapi` n'est pas reconnue, vérifier que l'environnement virtuel est actif, ou lancer `uvicorn app.main:app --reload`.
+> Le mode `dev` active le rechargement automatique et écoute en local uniquement. La mise en production (Uvicorn ou Gunicorn derrière un proxy) est traitée le jour 3. Si la commande `fastapi` n'est pas reconnue, vérifier que l'environnement virtuel est actif, ou lancer `uvicorn app.main:app --reload --host 0.0.0.0` pour écouter sur toutes les interfaces réseau.
 
 ### 🛠️ Micro-atelier 6 — Première route et premier contrat (15 min)
 
@@ -431,7 +431,7 @@ Les décorateurs acceptent des options qui alimentent à la fois le **comporteme
 **Organiser les routes avec `APIRouter`.** Une application réelle ne tient pas dans un seul fichier. Chaque ressource a son module, avec son propre routeur, assemblé dans `main.py` :
 
 ```python
-# app/routes/formations.py
+# app/routers/formations.py
 from fastapi import APIRouter
 
 router = APIRouter(prefix="/formations", tags=["formations"])
@@ -443,7 +443,7 @@ def lister_formations(): ...
 ```python
 # app/main.py
 from fastapi import APIRouter, FastAPI
-from .routes import formations
+from .routers import formations
 
 v1 = APIRouter(prefix="/v1")
 v1.include_router(formations.router)
@@ -1051,7 +1051,7 @@ api-catalogue/
 
 #### Étape 1 — Squelette (10 min)
 
-Créer `app/__init__.py` et `app/routes/__init__.py` (fichiers vides), `pyproject.toml` (section 4.2), puis compléter `.env` avec les valeurs générées au micro-atelier 9.
+Créer `app/__init__.py` et `app/routers/__init__.py` (fichiers vides), `pyproject.toml` (section 4.2), puis compléter `.env` avec les valeurs générées au micro-atelier 9.
 
 **Corrigé — `app/dependances.py`**
 
@@ -1152,7 +1152,7 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI
 
 from .erreurs import installer_gestionnaires
-from .routes import admin, formations, interventions
+from .routers import admin, formations, interventions
 
 load_dotenv()
 
@@ -1411,7 +1411,7 @@ def paginer(elements: list[Any], taille: int, apres: str | None,
 
 #### Étape 3 — Routes des formations (25 min)
 
-**Corrigé — `app/routes/formations.py`**
+**Corrigé — `app/routers/formations.py`**
 
 ```python
 import uuid
@@ -1488,7 +1488,7 @@ La sécurité manque encore : `ECRITURE` est défini à l'étape 5. Pour avancer
 
 #### Étape 4 — Interventions et erreurs uniformes (10 min)
 
-**Corrigé — `app/routes/interventions.py`**
+**Corrigé — `app/routers/interventions.py`**
 
 ```python
 import uuid
@@ -1617,7 +1617,7 @@ def exiger(portee: str) -> Callable[..., frozenset[str]]:
 ECRITURE = [Depends(exiger("catalogue:write"))]
 ```
 
-**Corrigé — `app/routes/admin.py`**
+**Corrigé — `app/routers/admin.py`**
 
 ```python
 from typing import Annotated
